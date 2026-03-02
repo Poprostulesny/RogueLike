@@ -6,7 +6,8 @@ class Program
 {
     static void Main(string[] args)
     {
-        Renderer Engine = new Renderer();
+        KeyboardInput input = new KeyboardInput();
+        Renderer Engine = new Renderer(input);
         Engine.Play();
     }
 }

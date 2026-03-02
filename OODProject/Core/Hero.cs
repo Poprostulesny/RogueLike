@@ -80,18 +80,7 @@ public class HeroStats
     public int Coins=0;
     public int Defense=20;
 
-    public string[] DisplayStats()
-    {
-        string[] stats = new string[7];
-        stats[0] = "Hero";
-        stats[1] = $"Strength: {Strength}";
-        stats[2] = $"Agility: {Agility}";
-        stats[3] = $"Wisdom: {Wisdom}";
-        stats[4] = $"Persuasion: {Persuasion}";
-        stats[5] = $"Health: {Health}";
-        stats[6] = $"Gold: {Gold} | Coins: {Coins}";
-        return stats;
-    }
+    
 
 }
 

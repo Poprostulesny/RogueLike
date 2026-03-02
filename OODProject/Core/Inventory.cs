@@ -14,6 +14,12 @@ public class Hands
             MessageBus.Send($"{item.Name} already equipped");
             return false;
         }
+
+        if (isTwoHandedEquipped)
+        {   
+            MessageBus.Send($"Before equipping an item free your hands!");
+            return false;
+        }
         if (item.isTwoHanded && Right==null && Left==null)
         {
             return true;
@@ -24,7 +30,7 @@ public class Hands
             return false;
         }
 
-        if (dir == Hand.Left && Left == null|| dir == Hand.Right && Right == null)
+        if ((dir == Hand.Left && Left == null)|| (dir == Hand.Right && Right == null))
         {
             return true;
         }
@@ -102,29 +108,7 @@ public class Hands
         return item;
     }
 
-    public string DisplayHands()
-    {
-        if (isTwoHandedEquipped)
-        {
-            return $"Both Hands: {Left.Name}";
-        }
-
-        if (Left == null && Right == null)
-        {
-            return "Left: None | Right: None";
-        }
-
-        if (Left == null)
-        {
-            return $"Left: None | Right: {Right.Name}";
-        }
-
-        if (Right == null)
-        {
-            return $"Left: {Left.Name} | Right: None";
-        }
-        return $"Left: {Left.Name} | Right: {Right.Name}";
-    }
+    
     
 }
 
@@ -162,25 +146,7 @@ public class Inventory(int _capacity)
       return res;
     }
 
-    public string[] DisplayInventory()
-    {
-        string[] display = new string[Capacity+1];
-        display[0] = "Inventory:";
-        int cnt = 1;
-        foreach(var item in _items)
-        {
-            display[cnt] = new string($"{cnt.ToString()}. {item.Name}");
-            cnt++;
-        }
-
-        while (cnt < Capacity + 1)
-        {
-            display[cnt] = "";
-            cnt++;
-        }
-
-        return display;
-    }
+   
     
 
 }

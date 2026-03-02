@@ -11,15 +11,16 @@ public interface Field : IDescribable
     }
 
    
-   
-   
+    public  IOccupant? Occupant { get;  }
+    public Hero? Player { get;  }
+    public bool isOccupied { get; }
     public List<IItem> Items{get;}
     public bool TryAddHero(ref Hero _player, int x, int y);
     public void RemoveHero();
     public  bool TryAddItem(IItem _item);
     public bool TryTakeItem(IItem _item);
 
-    public abstract string[] Display();
+    
 
 
 }
@@ -28,14 +29,18 @@ public class EmptyField() : Field
 {
     
     public bool CanBeEntered { get=>true; }
+     public IOccupant? Occupant { get=>_occupant; }
+     public Hero? Player { get=>_player; }
+    public bool isOccupied { get=>_isoccupied; }
     public List<IItem> Items { get=>_items; }
     public char Glyph { get=>_glyph; }
     public string Description { get=>Message(); }
     public string Name { get=> "Empty Field";  }
     private char _glyph = ' ';
-    public  IOccupant? Occupant;
-    public Hero? Player;
-    public bool isOccupied;
+    private  IOccupant? _occupant;
+    private Hero? _player;
+    private bool _isoccupied=false;
+    
     private List<IItem> _items = new List<IItem>();
     
     public bool TryAddItem(IItem item)
@@ -44,29 +49,25 @@ public class EmptyField() : Field
         UpdateGlyph();
         return true;
     }
-    // TODO
-    /// <summary>
-    /// ma nie byc tu w srodku zadnych itemow ani tego co na nim jest
-    /// usunac redundancje
-    /// </summary>
+  
 
     private void UpdateGlyph()
     {
-        if (Player != null && Occupant != null)
+        if (_player != null && _occupant != null)
         {
             _glyph = 'X';
             return;
         }
 
-        if (Occupant != null)
+        if (_occupant != null)
         {
-            _glyph = Occupant.Glyph;
+            _glyph = _occupant.Glyph;
             return;
         }
 
-        if (Player != null)
+        if (_player != null)
         {
-            _glyph = Player.Glyph;
+            _glyph = _player.Glyph;
             return;
         }
 
@@ -81,12 +82,12 @@ public class EmptyField() : Field
     }
     public bool TryAddOccupant(IOccupant occupant)
     {
-        if (Occupant != null)
+        if (_occupant != null)
         {
             return false;
         }
-        Occupant = occupant;
-        isOccupied = true;
+        _occupant = occupant;
+        _isoccupied = true;
         UpdateGlyph();
         return true;
     }
@@ -98,34 +99,13 @@ public class EmptyField() : Field
        return res;
     }
 
-    public string[] Display()
+    
+
+
+    public bool TryAddHero(ref Hero player, int x, int y)
     {
-        List<string> disp = new List<string>();
-        disp.Add(new string("Player stands on an Empty Field:"));
-        if (isOccupied)
-        {
-            disp.Add(new string($"Enemy: {Occupant.Name}: {Occupant.Description}"));
-        }
-
-        if (Items.Count != 0)
-        {
-            disp.Add(new string("Items:"));
-            int cnt = 1;
-            foreach (IItem item in Items)
-            {
-                disp.Add(new string($"- {cnt.ToString()}. {item.Name}: {item.Description}"));
-                cnt++;
-            }
-        }
-        return disp.ToArray();
-        
-    }
-
-
-    public bool TryAddHero(ref Hero _player, int x, int y)
-    {
-        Player = _player;
-        Player.ChangePosition(x, y);
+        _player = player;
+        _player.ChangePosition(x, y);
         UpdateGlyph();
         return true;
         
@@ -133,7 +113,7 @@ public class EmptyField() : Field
 
     public void RemoveHero()
     {   
-        Player = null;
+        _player = null;
         UpdateGlyph();
     }
 
@@ -150,7 +130,10 @@ public class NonEnterableField() : Field
    
    
     public bool CanBeEntered { get=>false; }
-    public List<IItem> Items { get; }
+    public IOccupant? Occupant { get=>null; }
+    public Hero? Player { get=>null; }
+    public bool isOccupied { get=>false; }
+    public List<IItem> Items { get=>new List<IItem>(); }
 
     public bool TryAddHero(ref Hero _player, int x, int y)
     {
