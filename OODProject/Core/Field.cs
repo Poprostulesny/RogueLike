@@ -1,139 +1,118 @@
-using System.Text;
-
 namespace OODProject;
 
 public interface Field : IDescribable
 {
+    public bool CanBeEntered { get; }
 
-    public bool CanBeEntered
-    {
-        get; 
-    }
 
-   
-    public  IOccupant? Occupant { get;  }
-    public Hero? Player { get;  }
+    public IOccupant? Occupant { get; }
+    public Hero? Player { get; }
     public bool isOccupied { get; }
-    public List<IItem> Items{get;}
+    public List<IItem> Items { get; }
     public bool TryAddHero(ref Hero _player, int x, int y);
     public void RemoveHero();
-    public  bool TryAddItem(IItem _item);
+    public bool TryAddItem(IItem _item);
     public bool TryTakeItem(IItem _item);
-
-    
-
-
 }
 
-public class EmptyField() : Field
+public class EmptyField : Field
 {
-    
-    public bool CanBeEntered { get=>true; }
-     public IOccupant? Occupant { get=>_occupant; }
-     public Hero? Player { get=>_player; }
-    public bool isOccupied { get=>_isoccupied; }
-    public List<IItem> Items { get=>_items; }
-    public char Glyph { get=>_glyph; }
-    public string Description { get=>Message(); }
-    public string Name { get=> "Empty Field";  }
-    private char _glyph = ' ';
-    private  IOccupant? _occupant;
-    private Hero? _player;
-    private bool _isoccupied=false;
-    
-    private List<IItem> _items = new List<IItem>();
-    
+    public bool CanBeEntered => true;
+    public IOccupant? Occupant { get; private set; }
+
+    public Hero? Player { get; private set; }
+
+    public bool isOccupied { get; private set; }
+
+    public List<IItem> Items { get; } = new();
+
+    public char Glyph { get; private set; } = ' ';
+
+    public string Description => Message();
+    public string Name => "Empty Field";
+
     public bool TryAddItem(IItem item)
     {
-        _items.Add(item);
-        UpdateGlyph();
-        return true;
-    }
-  
-
-    private void UpdateGlyph()
-    {
-        if (_player != null && _occupant != null)
-        {
-            _glyph = 'X';
-            return;
-        }
-
-        if (_occupant != null)
-        {
-            _glyph = _occupant.Glyph;
-            return;
-        }
-
-        if (_player != null)
-        {
-            _glyph = _player.Glyph;
-            return;
-        }
-
-        if (_items.Count != 0)
-        {
-            _glyph = _items[0].Glyph;
-            return;
-        }
-        _glyph = ' '; 
-        
-        
-    }
-    public bool TryAddOccupant(IOccupant occupant)
-    {
-        if (_occupant != null)
-        {
-            return false;
-        }
-        _occupant = occupant;
-        _isoccupied = true;
+        Items.Add(item);
         UpdateGlyph();
         return true;
     }
 
     public bool TryTakeItem(IItem item)
-    {   
-       var res =  _items.Remove(item);
-       UpdateGlyph();
-       return res;
+    {
+        var res = Items.Remove(item);
+        UpdateGlyph();
+        return res;
     }
-
-    
 
 
     public bool TryAddHero(ref Hero player, int x, int y)
     {
-        _player = player;
-        _player.ChangePosition(x, y);
+        Player = player;
+        Player.ChangePosition(x, y);
         UpdateGlyph();
         return true;
-        
     }
 
     public void RemoveHero()
-    {   
-        _player = null;
+    {
+        Player = null;
         UpdateGlyph();
     }
 
-    
+
     public string Message()
     {
         throw new NotImplementedException();
     }
+
+
+    private void UpdateGlyph()
+    {
+        if (Player != null && Occupant != null)
+        {
+            Glyph = 'X';
+            return;
+        }
+
+        if (Occupant != null)
+        {
+            Glyph = Occupant.Glyph;
+            return;
+        }
+
+        if (Player != null)
+        {
+            Glyph = Player.Glyph;
+            return;
+        }
+
+        if (Items.Count != 0)
+        {
+            Glyph = Items[0].Glyph;
+            return;
+        }
+
+        Glyph = ' ';
+    }
+
+    public bool TryAddOccupant(IOccupant occupant)
+    {
+        if (Occupant != null) return false;
+        Occupant = occupant;
+        isOccupied = true;
+        UpdateGlyph();
+        return true;
+    }
 }
 
-public class NonEnterableField() : Field
+public class NonEnterableField : Field
 {
-  
-   
-   
-    public bool CanBeEntered { get=>false; }
-    public IOccupant? Occupant { get=>null; }
-    public Hero? Player { get=>null; }
-    public bool isOccupied { get=>false; }
-    public List<IItem> Items { get=>new List<IItem>(); }
+    public bool CanBeEntered => false;
+    public IOccupant? Occupant => null;
+    public Hero? Player => null;
+    public bool isOccupied => false;
+    public List<IItem> Items => new();
 
     public bool TryAddHero(ref Hero _player, int x, int y)
     {
@@ -142,7 +121,6 @@ public class NonEnterableField() : Field
 
     public void RemoveHero()
     {
-        
     }
 
     public bool TryAddItem(IItem _item)
@@ -155,18 +133,19 @@ public class NonEnterableField() : Field
         return false;
     }
 
-    public string[] Display()
-    {
-        List<String> disp = new List<string>();
-        disp.Add(new string("This field is non enterable"));
-        return disp.ToArray();
-    }
+    public char Glyph => '█';
+    public string Description => "Non Enterable Field";
+    public string Name => "Non Enterable Field";
 
-    public char Glyph { get=>'█';  }
-    public string Description { get=>"Non Enterable Field";  }
-    public string Name { get=>"Non Enterable Field";  }
     public string Message()
     {
         throw new NotImplementedException();
+    }
+
+    public string[] Display()
+    {
+        var disp = new List<string>();
+        disp.Add(new string("This field is non enterable"));
+        return disp.ToArray();
     }
 }

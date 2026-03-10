@@ -1,11 +1,10 @@
 namespace OODProject;
 
-
 public class Hands
 {
+    public bool isTwoHandedEquipped;
     public IInventoryItem? Left;
     public IInventoryItem? Right;
-    public bool isTwoHandedEquipped  = false;
 
     public bool CanEquip(IInventoryItem item, Hand dir)
     {
@@ -16,24 +15,16 @@ public class Hands
         }
 
         if (isTwoHandedEquipped)
-        {   
-            MessageBus.Send($"Before equipping an item free your hands!");
-            return false;
-        }
-        if (item.isTwoHanded && Right==null && Left==null)
         {
-            return true;
-        }
-
-        if (item.isTwoHanded && (Left != null || Right != null))
-        {
+            MessageBus.Send("Before equipping an item free your hands!");
             return false;
         }
 
-        if ((dir == Hand.Left && Left == null)|| (dir == Hand.Right && Right == null))
-        {
-            return true;
-        }
+        if (item.isTwoHanded && Right == null && Left == null) return true;
+
+        if (item.isTwoHanded && (Left != null || Right != null)) return false;
+
+        if ((dir == Hand.Left && Left == null) || (dir == Hand.Right && Right == null)) return true;
 
         return false;
     }
@@ -49,7 +40,7 @@ public class Hands
                 isTwoHandedEquipped = true;
                 return true;
             }
-            
+
             switch (where)
             {
                 case Hand.Left:
@@ -59,16 +50,16 @@ public class Hands
                     Right = item;
                     break;
             }
+
             item.ApplyEffect(Player);
             return true;
         }
 
         return false;
-
     }
 
     public IInventoryItem? TryRemove(Hand where, Hero Player)
-    {   
+    {
         IInventoryItem? item = null;
         if (isTwoHandedEquipped)
         {
@@ -76,77 +67,61 @@ public class Hands
             isTwoHandedEquipped = false;
             Right = null;
             Left = null;
-            if (item != null)
-            {
-                item.TakeOffEffect(Player);
-            }
+            if (item != null) item.TakeOffEffect(Player);
             return item;
         }
-        switch(where)
+
+        switch (where)
         {
             case Hand.Left:
                 if (Left != null)
                 {
                     item = Left;
                     Left = null;
-                    
                 }
+
                 break;
             case Hand.Right:
                 if (Right != null)
                 {
                     item = Right;
                     Right = null;
-                    
                 }
+
                 break;
         }
-        if (item != null)
-        {
-            item.TakeOffEffect(Player);
-        }
+
+        if (item != null) item.TakeOffEffect(Player);
         return item;
     }
-
-    
-    
 }
 
 public class Inventory(int _capacity)
 {
     public int Capacity = _capacity;
-    public int UsedUpCapacity=0;
-    private List<IInventoryItem> _items = new List<IInventoryItem>();
-    public List<IInventoryItem> Items 
-    {
-        get => _items;
-    }
-    
+    public int UsedUpCapacity;
+
+    public List<IInventoryItem> Items { get; } = new();
+
     public bool TryAdd(IInventoryItem item)
     {
-        if(UsedUpCapacity + item.item_size  <= Capacity)
+        if (UsedUpCapacity + item.item_size <= Capacity)
         {
-            _items.Add(item);
+            Items.Add(item);
             UsedUpCapacity += item.item_size;
             MessageBus.Send($"{item.Name} has been added to Inventory");
             return true;
         }
-        MessageBus.Send($"{item.Name} has not been added to Inventory");
+
+       
         return false;
     }
 
     public bool Remove(IInventoryItem item)
     {
-      var res = _items.Remove(item);
-      if (res)
-      {
-          UsedUpCapacity -= item.item_size;
-      }
+        var res = Items.Remove(item);
+        if (res) UsedUpCapacity -= item.item_size;
 
-      return res;
+        return res;
     }
-
-   
-    
-
 }

@@ -1,15 +1,15 @@
-
 namespace OODProject;
+
 public static class WorldGenerator
-{   
+{
     private static Direction GetRandomDirection(Random rand)
     {
-        int rnd = rand.Next(0, 4);
+        var rnd = rand.Next(0, 4);
         return (Direction)rnd;
     }
 
-    private static void NewXY(Direction dir, ref int x,ref int y)
-    {   
+    private static void NewXY(Direction dir, int x, int y)
+    {
         switch (dir)
         {
             case Direction.Up:
@@ -24,42 +24,41 @@ public static class WorldGenerator
             case Direction.Right:
                 x = x + 1;
                 break;
-                    
         }
     }
+
     /*
         code from https://github.com/munificent/hauberk/blob/db360d9efa714efb6d937c31953ef849c7394a39/lib/src/content/dungeon.dart
         translated into c#
         i dont rly understand whats going on but it works
         my additions are forcing room of size 3 at 1,1 and ensuring it is connected
-        */ 
-    public static void MazeWithRooms(ref Field[,] World)
+        */
+    public static void MazeWithRooms(Field[,] World)
     {
-        int height = World.GetLength(0);
-        int width = World.GetLength(1);
+        var height = World.GetLength(0);
+        var width = World.GetLength(1);
 
-        var rand = new Random(System.DateTime.Now.Millisecond);
+        var rand = new Random(DateTime.Now.Millisecond);
 
-       
+
         var open = new bool[height, width];
         var regions = new int[height, width];
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                regions[y, x] = -1;
-            }
-        }
+        for (var y = 0; y < height; y++)
+        for (var x = 0; x < width; x++)
+            regions[y, x] = -1;
 
-        int currentRegion = -1;
+        var currentRegion = -1;
         var rooms = new List<(int x, int y, int w, int h)>();
 
-        int numRoomTries = 50;
-        int roomExtraSize = 0;
-        int extraConnectorChance = 20;
-        int windingPercent = 90;
+        var numRoomTries = 50;
+        var roomExtraSize = 0;
+        var extraConnectorChance = 20;
+        var windingPercent = 90;
 
-        void StartRegion() => currentRegion++;
+        void StartRegion()
+        {
+            currentRegion++;
+        }
 
         void Carve(int x, int y)
         {
@@ -93,21 +92,16 @@ public static class WorldGenerator
                 var unmade = new List<(int dx, int dy)>();
 
                 foreach (var dir in new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) })
-                {
-                    if (CanCarve(cell.x, cell.y, dir.dx, dir.dy)) unmade.Add(dir);
-                }
+                    if (CanCarve(cell.x, cell.y, dir.dx, dir.dy))
+                        unmade.Add(dir);
 
                 if (unmade.Count > 0)
                 {
                     (int dx, int dy) dir;
                     if (lastDir.HasValue && unmade.Contains(lastDir.Value) && rand.Next(0, 100) > windingPercent)
-                    {
                         dir = lastDir.Value;
-                    }
                     else
-                    {
                         dir = unmade[rand.Next(0, unmade.Count)];
-                    }
 
                     Carve(cell.x + dir.dx, cell.y + dir.dy);
                     Carve(cell.x + dir.dx * 2, cell.y + dir.dy * 2);
@@ -124,54 +118,43 @@ public static class WorldGenerator
         }
 
         void AddRooms()
-        {   
-           
+        {
             rooms.Add((1, 1, 3, 3));
             StartRegion();
-            for (int ry = 1; ry < 1 + 3; ry++)
+            for (var ry = 1; ry < 1 + 3; ry++)
+            for (var rx = 1; rx < 1 + 3; rx++)
+                Carve(rx, ry);
+
+            for (var i = 0; i < numRoomTries; i++)
             {
-                for (int rx = 1; rx < 1 + 3; rx++)
-                {
-                    Carve(rx, ry);
-                }
-            }
-            
-            for (int i = 0; i < numRoomTries; i++)
-            {
-                
-                int size = rand.Next(1, 3 + roomExtraSize + 1) * 2 + 1;
-                int rectangularity = rand.Next(0, 1 + size / 2 + 1) * 2;
-                int roomW = size;
-                int roomH = size;
+                var size = rand.Next(1, 3 + roomExtraSize + 1) * 2 + 1;
+                var rectangularity = rand.Next(0, 1 + size / 2 + 1) * 2;
+                var roomW = size;
+                var roomH = size;
                 if (rand.Next(0, 2) == 0)
-                {
                     roomW += rectangularity;
-                }
                 else
-                {
                     roomH += rectangularity;
-                }
 
-                int maxX = (width - roomW - 1) / 2;
-                int maxY = (height - roomH - 1) / 2;
+                var maxX = (width - roomW - 1) / 2;
+                var maxY = (height - roomH - 1) / 2;
                 if (maxX <= 0 || maxY <= 0) continue;
-        
-                int x = rand.Next(0, maxX) * 2 + 1;
-                int y = rand.Next(0, maxY) * 2 + 1;
 
-                bool overlaps = false;
+                var x = rand.Next(0, maxX) * 2 + 1;
+                var y = rand.Next(0, maxY) * 2 + 1;
+
+                var overlaps = false;
                 foreach (var other in rooms)
                 {
-                    
-                    int ax1 = x - 1;
-                    int ay1 = y - 1;
-                    int ax2 = x + roomW;
-                    int ay2 = y + roomH;
+                    var ax1 = x - 1;
+                    var ay1 = y - 1;
+                    var ax2 = x + roomW;
+                    var ay2 = y + roomH;
 
-                    int bx1 = other.x - 1;
-                    int by1 = other.y - 1;
-                    int bx2 = other.x + other.w;
-                    int by2 = other.y + other.h;
+                    var bx1 = other.x - 1;
+                    var by1 = other.y - 1;
+                    var bx2 = other.x + other.w;
+                    var by2 = other.y + other.h;
 
                     if (ax1 <= bx2 && ax2 >= bx1 && ay1 <= by2 && ay2 >= by1)
                     {
@@ -183,42 +166,36 @@ public static class WorldGenerator
                 if (overlaps) continue;
 
                 rooms.Add((x, y, roomW, roomH));
-    
+
                 StartRegion();
-                for (int ry = y; ry < y + roomH; ry++)
-                {
-                    for (int rx = x; rx < x + roomW; rx++)
-                    {
-                        Carve(rx, ry);
-                    }
-                }
+                for (var ry = y; ry < y + roomH; ry++)
+                for (var rx = x; rx < x + roomW; rx++)
+                    Carve(rx, ry);
             }
         }
 
         void ConnectRegions()
         {
             var connectorRegions = new Dictionary<(int x, int y), HashSet<int>>();
-            for (int y = 1; y <= height - 2; y++)
+            for (var y = 1; y <= height - 2; y++)
+            for (var x = 1; x <= width - 2; x++)
             {
-                for (int x = 1; x <= width - 2; x++)
+                if (open[y, x]) continue;
+                var regionsHere = new HashSet<int>();
+                foreach (var dir in new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) })
                 {
-                    if (open[y, x]) continue;
-                    var regionsHere = new HashSet<int>();
-                    foreach (var dir in new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) })
-                    {
-                        int r = regions[y + dir.dy, x + dir.dx];
-                        if (r != -1) regionsHere.Add(r);
-                    }
-
-                    if (regionsHere.Count < 2) continue;
-                    connectorRegions[(x, y)] = regionsHere;
+                    var r = regions[y + dir.dy, x + dir.dx];
+                    if (r != -1) regionsHere.Add(r);
                 }
+
+                if (regionsHere.Count < 2) continue;
+                connectorRegions[(x, y)] = regionsHere;
             }
 
             var connectors = connectorRegions.Keys.ToList();
             var merged = new Dictionary<int, int>();
             var openRegions = new HashSet<int>();
-            for (int i = 0; i <= currentRegion; i++)
+            for (var i = 0; i <= currentRegion; i++)
             {
                 merged[i] = i;
                 openRegions.Add(i);
@@ -230,13 +207,12 @@ public static class WorldGenerator
                 open[connector.y, connector.x] = true;
 
                 var regionsHere = connectorRegions[connector].Select(r => merged[r]).ToList();
-                int dest = regionsHere[0];
+                var dest = regionsHere[0];
                 var sources = regionsHere.Skip(1).ToList();
 
-                for (int i = 0; i <= currentRegion; i++)
-                {
-                    if (sources.Contains(merged[i])) merged[i] = dest;
-                }
+                for (var i = 0; i <= currentRegion; i++)
+                    if (sources.Contains(merged[i]))
+                        merged[i] = dest;
 
                 openRegions.RemoveWhere(r => sources.Contains(r));
 
@@ -247,10 +223,7 @@ public static class WorldGenerator
                     var mapped = connectorRegions[pos].Select(r => merged[r]).ToHashSet();
                     if (mapped.Count > 1) return false;
 
-                    if (rand.Next(0, extraConnectorChance) == 0)
-                    {
-                        open[pos.y, pos.x] = true;
-                    }
+                    if (rand.Next(0, extraConnectorChance) == 0) open[pos.y, pos.x] = true;
 
                     return true;
                 });
@@ -259,41 +232,38 @@ public static class WorldGenerator
 
         void RemoveDeadEnds()
         {
-            bool done = false;
+            var done = false;
             while (!done)
             {
                 done = true;
-                for (int y = 1; y <= height - 2; y++)
+                for (var y = 1; y <= height - 2; y++)
+                for (var x = 1; x <= width - 2; x++)
                 {
-                    for (int x = 1; x <= width - 2; x++)
-                    {
-                        if (!open[y, x]) continue;
-                        if (x >= 1 && x <= 3 && y >= 1 && y <= 3) continue; // keep start room open
+                    if (!open[y, x]) continue;
+                    if (x >= 1 && x <= 3 && y >= 1 && y <= 3) continue; // keep start room open
 
-                        int exits = 0;
-                        foreach (var dir in new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) })
-                        {
-                            if (open[y + dir.dy, x + dir.dx]) exits++;
-                        }
+                    var exits = 0;
+                    foreach (var dir in new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) })
+                        if (open[y + dir.dy, x + dir.dx])
+                            exits++;
 
-                        if (exits != 1) continue;
+                    if (exits != 1) continue;
 
-                        done = false;
-                        open[y, x] = false;
-                    }
+                    done = false;
+                    open[y, x] = false;
                 }
             }
         }
 
         void CloseBorders()
         {
-            for (int y = 0; y < height; y++)
+            for (var y = 0; y < height; y++)
             {
                 open[y, 0] = false;
                 open[y, width - 1] = false;
             }
 
-            for (int x = 0; x < width; x++)
+            for (var x = 0; x < width; x++)
             {
                 open[0, x] = false;
                 open[height - 1, x] = false;
@@ -310,48 +280,41 @@ public static class WorldGenerator
             while (queue.Count > 0)
             {
                 var (cx, cy) = queue.Dequeue();
-                var dirs = new (int dx, int dy)[]{ (0, -1), (0, 1), (-1, 0), (1, 0) };
+                var dirs = new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
                 foreach (var dir in dirs)
                 {
-                    int nx = cx + dir.dx;
-                    int ny = cy + dir.dy;
-                    if (nx < 1 || nx > width - 2 || ny < 1 || ny > height - 2)
-                    {
-                        continue;
-                    }
+                    var nx = cx + dir.dx;
+                    var ny = cy + dir.dy;
+                    if (nx < 1 || nx > width - 2 || ny < 1 || ny > height - 2) continue;
 
                     if (open[ny, nx] && !visited[ny, nx])
                     {
                         visited[ny, nx] = true;
                         queue.Enqueue((nx, ny));
                     }
-                    
                 }
             }
 
             return visited;
         }
 
-        
 
         void ConnectAllComponentsToStart()
         {
             open[1, 1] = true;
-            
+
             int CountOpen()
             {
-                int cnt = 0;
-                for (int y = 1; y <= height - 2; y++)
-                {
-                    for (int x = 1; x <= width - 2; x++)
-                    {
-                        if (open[y, x]) cnt++;
-                    }
-                }
+                var cnt = 0;
+                for (var y = 1; y <= height - 2; y++)
+                for (var x = 1; x <= width - 2; x++)
+                    if (open[y, x])
+                        cnt++;
+
                 return cnt;
             }
 
-            int openCount = CountOpen();
+            var openCount = CountOpen();
             if (openCount <= 1) return;
             //while we can not reach some components
             //connectivity of other components should be ensured by the algorithm but better safe than sorry
@@ -359,61 +322,49 @@ public static class WorldGenerator
             {
                 var visited = FloodFromStart();
                 var visitedCells = new List<(int x, int y)>();
-                for (int y = 1; y <= height - 2; y++)
-                {
-                    for (int x = 1; x <= width - 2; x++)
-                    {
-                        if (visited[y, x]) visitedCells.Add((x, y));
-                    }
-                }
+                for (var y = 1; y <= height - 2; y++)
+                for (var x = 1; x <= width - 2; x++)
+                    if (visited[y, x])
+                        visitedCells.Add((x, y));
 
-                int connectedCount = visitedCells.Count;
+                var connectedCount = visitedCells.Count;
                 if (connectedCount == openCount) break;
 
-                int bestDist = int.MaxValue;
+                var bestDist = int.MaxValue;
                 (int x, int y) target = (1, 1);
                 (int x, int y) anchor = (1, 1);
 
-                for (int ty = 1; ty <= height - 2; ty++)
+                for (var ty = 1; ty <= height - 2; ty++)
+                for (var tx = 1; tx <= width - 2; tx++)
                 {
-                    for (int tx = 1; tx <= width - 2; tx++)
+                    if (!open[ty, tx] || visited[ty, tx]) continue;
+                    //searching for the closest unvisited (target) cell from the visited cells (anchor)
+                    foreach (var (vx, vy) in visitedCells)
                     {
-                        
-                        if (!open[ty, tx] || visited[ty, tx]) continue;
-                        //searching for the closest unvisited (target) cell from the visited cells (anchor)
-                        foreach (var (vx, vy) in visitedCells)
+                        var dist = Math.Abs(tx - vx) + Math.Abs(ty - vy);
+                        if (dist < bestDist)
                         {
-                            int dist = Math.Abs(tx - vx) + Math.Abs(ty - vy);
-                            if (dist < bestDist)
-                            {
-                                bestDist = dist;
-                                target = (tx, ty);
-                                anchor = (vx, vy);
-                            }
+                            bestDist = dist;
+                            target = (tx, ty);
+                            anchor = (vx, vy);
                         }
                     }
                 }
+
                 //current coords
-                int wx = anchor.x;
-                int wy = anchor.y;
-                int safety = width * height * 10;
+                var wx = anchor.x;
+                var wy = anchor.y;
+                var safety = width * height * 10;
                 while ((wx != target.x || wy != target.y) && safety-- > 0)
                 {
                     open[wy, wx] = true;
                     //randomly choosing shape of the tunnel
-                    bool moveHorizFirst = rand.Next(0, 2) == 0;
+                    var moveHorizFirst = rand.Next(0, 2) == 0;
                     if (moveHorizFirst && wx != target.x)
-                    {
                         wx += Math.Sign(target.x - wx);
-                    }
                     else if (wy != target.y)
-                    {
                         wy += Math.Sign(target.y - wy);
-                    }
-                    else if (wx != target.x)
-                    {
-                        wx += Math.Sign(target.x - wx);
-                    }
+                    else if (wx != target.x) wx += Math.Sign(target.x - wx);
                     //ensuring we stay within the boundsy
                     if (wx < 1) wx = 1;
                     if (wx > width - 2) wx = width - 2;
@@ -427,100 +378,389 @@ public static class WorldGenerator
 
         AddRooms();
 
-        for (int y = 1; y <= height - 2; y += 2)
+        for (var y = 1; y <= height - 2; y += 2)
+        for (var x = 1; x <= width - 2; x += 2)
         {
-            for (int x = 1; x <= width - 2; x += 2)
-            {
-                if (open[y, x]) continue;
-                GrowMaze(x, y);
-            }
+            if (open[y, x]) continue;
+            GrowMaze(x, y);
         }
 
         ConnectRegions();
         RemoveDeadEnds();
 
         // Ensure the start room stays open.
-        for (int ry = 1; ry <= 3; ry++)
-        {
-            for (int rx = 1; rx <= 3; rx++)
-            {
-                open[ry, rx] = true;
-            }
-        }
+        for (var ry = 1; ry <= 3; ry++)
+        for (var rx = 1; rx <= 3; rx++)
+            open[ry, rx] = true;
+
         ConnectAllComponentsToStart();
         CloseBorders();
-       
-        
 
-        
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                if (open[y, x])
-                {
-                    World[y, x] = new EmptyField();
-                }
-                else
-                {
-                    World[y, x] = new NonEnterableField();
-                }
-            }
-        }
+
+        for (var y = 0; y < height; y++)
+        for (var x = 0; x < width; x++)
+            if (open[y, x])
+                World[y, x] = new EmptyField();
+            else
+                World[y, x] = new NonEnterableField();
     }
-    public static void DrunkardsWalk(ref Field[,] World)
+
+    public static void DrunkardsWalk(Field[,] World)
     {
-        int curx = 1;
-        int cury = 1;
-        Random rand = new Random(System.DateTime.Now.Millisecond);
-        bool[,] visited = new bool[42, 22];
-        for (int i = 0; i < 42; i++)
+        var curx = 1;
+        var cury = 1;
+        var rand = new Random(DateTime.Now.Millisecond);
+        var visited = new bool[42, 22];
+        for (var i = 0; i < 42; i++)
         {
-            visited[i,0] = false;
-            visited[i,21] = false;
+            visited[i, 0] = false;
+            visited[i, 21] = false;
         }
 
-        for (int i = 0; i < 22; i++)
+        for (var i = 0; i < 22; i++)
         {
-            visited[0, i]= false;
+            visited[0, i] = false;
             visited[41, i] = false;
         }
-        for (int i = 0; i < 20 * 40 *3; i++)
+
+        for (var i = 0; i < 20 * 40 * 3; i++)
         {
-            
-            
-            
-            int new_x = curx;
-            int new_y = cury;
+            var new_x = curx;
+            var new_y = cury;
             do
             {
-                new_x =curx;
+                new_x = curx;
                 new_y = cury;
-                Direction dir = GetRandomDirection(rand);
-                NewXY(dir, ref new_x, ref new_y);
+                var dir = GetRandomDirection(rand);
+                NewXY(dir, new_x, new_y);
             } while (new_x < 1 || new_x > 20 || new_y < 1 || new_y > 40);
+
             visited[new_y, new_x] = true;
             curx = new_x;
             cury = new_y;
         }
 
-        
 
-        for (int y = 0; y < 42; y++)
+        for (var y = 0; y < 42; y++)
+        for (var x = 0; x < 22; x++)
+            if (!visited[y, x])
+                World[y, x] = new NonEnterableField();
+            else
+                World[y, x] = new EmptyField();
+    }
+}
+
+public static class WorldGeneratorNew
+{
+ 
+
+    private static void NewXY(Direction dir, ref int x,ref  int y)
+    {
+        switch (dir)
         {
-            for (int x = 0; x < 22; x++)
-            {
-                if (visited[y, x] == false)
+            case Direction.Up:
+                y = y - 1;
+                break;
+            case Direction.Down:
+                y = y + 1;
+                break;
+            case Direction.Left:
+                x = x - 1;
+                break;
+            case Direction.Right:
+                x = x + 1;
+                break;
+        }
+    }
+
+    private static void EnsureConnectedness(Field[,] World)
+    {
+        var clr_list = new List<List<(int, int)>>();
+        World[1, 1] = new EmptyField();
+        int[,] visited;
+        while (true)
+        {
+            visited = new int[World.GetLength(0), World.GetLength(1)];
+            var EnterableFields = new List<(int, int)>();
+            var empty_cnt = 0;
+            for (var y = 0; y < World.GetLength(0); y++)
+            for (var x = 0; x < World.GetLength(1); x++)
+                if (World[y, x].CanBeEntered)
                 {
-                    World[y, x] = new NonEnterableField();
+                    empty_cnt++;
+                    EnterableFields.Add((y, x));
                 }
                 else
                 {
-                    World[y, x] = new EmptyField();
+                    visited[y, x] = int.MaxValue;
                 }
+
+
+            clr_list.Clear();
+            var clr_cnt = 0;
+            foreach (var (y, x) in EnterableFields)
+                if (visited[y, x] == 0)
+                {
+                    clr_cnt++;
+                    clr_list.Add(new List<(int, int)>());
+                    dfs(clr_cnt, y, x, clr_list[clr_cnt - 1]);
+                    
+                    
+                }
+
+            if (clr_cnt == 1) return;
+
+             find_closest_and_connect(1, 2);
+        }
+
+
+      
+
+        void find_closest_and_connect(int clra, int clrb)
+        {
+            var mindist = int.MaxValue;
+            (int ya, int xa, int yb, int xb) minpair = (0, 0, 0, 0);
+            foreach (var (ya, xa) in clr_list[clra - 1])
+            foreach (var (yb, xb) in clr_list[clrb - 1])
+            {
+                var dist = Math.Abs(yb - ya) + Math.Abs(xb - xa);
+                if (dist < mindist)
+                {
+                    mindist = dist;
+                    minpair = (ya, xa, yb, xb);
+                }
+            }
+
+            AddPath(minpair.xa, minpair.ya, minpair.xb, minpair.yb, Random.Shared.Next(1,3), World);
+        }
+
+        void dfs(int clr, int y, int x, List<(int, int)> clr_list)
+        {
+            visited[y, x] = clr;
+            clr_list.Add((y, x));
+            for (var i = 0; i < 4; i++)
+            {
+                int nx = x, ny = y;
+                NewXY((Direction)i,ref nx,ref ny);
+                if (visited[ny, nx] == 0) dfs(clr, ny, nx, clr_list);
+            }
+        }
+    }
+
+    private static void AddPath(int startX, int startY, int endX, int endY, int shape, Field[,] World)
+    {
+        var x = startX;
+        var y = startY;
+        var y_increment = endY > startY ? 1 : -1;
+        var x_increment = endX > startX ? 1 : -1;
+        if (shape == 1)
+        {
+            while (x != endX)
+            {
+                World[y, x] = new EmptyField();
+                x+=x_increment;
+            }
+
+            while (y != endY)
+            {
+                World[y, x] = new EmptyField();
+                y+=y_increment;
+            }
+        }
+        else
+        {
+            while (y != endY)
+            {
+                World[y, x] = new EmptyField();
+                y+=y_increment;
+            }
+
+            while (x != endX)
+            {
+                World[y, x] = new EmptyField();
+                x+=x_increment;
+            }
+        }
+    }
+
+    public static void AddPaths(Field[,] World, int amount)
+    {
+        var height = World.GetLength(0);
+        var width = World.GetLength(1);
+        var random = new Random(DateTime.Now.Microsecond);
+
+        var PathCount = amount;
+        for (var i = 0; i < PathCount; i++)
+        {
+            var s_x = random.Next(1, width - 2);
+            var s_y = random.Next(1, height - 2);
+            var e_x = random.Next(1, width - 1);
+            var e_y = random.Next(1, height - 1);
+            var shape = random.Next(1, 3);
+            AddPath(s_x, s_y, e_x, e_y, shape, World);
+        }
+
+        EnsureConnectedness(World);
+    }
+
+    public static void AddCentralRoom(Field[,] World, int w, int h)
+    {
+        int midy = World.GetLength(0) / 2;
+        int midx = World.GetLength(1) / 2;
+        int startx = Math.Max(0,midx - w / 2);
+        int starty = Math.Max(0, midy - h / 2);
+        for (int y = starty; y < Math.Min(starty+h, World.GetLength(0)-1); y++)
+        {
+            for (int x = startx; x < Math.Min(startx+w, World.GetLength(1)-1); x++)
+            {
+               World[y,x] = new EmptyField();
+            }
+        }
+        EnsureConnectedness(World);
+    }
+
+    struct Square(int _x1, int _y1, int _x2, int _y2)
+    {
+       public int x1 = _x1;
+       public int y1= _y1;
+       public int x2 = _x2;
+       public int y2 = _y2;
+    }
+
+    public static void AddWeapons(Field[,] World, List<IInventoryItem> weapons, int amount)
+    {
+        List<(int, int)> EmptyPoints = new List<(int, int)>();
+        for (int y = 1; y < World.GetLength(0) - 1; y++)
+        {
+            for (int x = 1; x < World.GetLength(1) - 1; x++)
+            {
+                if(World[y, x].CanBeEntered) EmptyPoints.Add((y, x));
             }
         }
         
+        Random random = new Random(DateTime.Now.Microsecond);
+        for (int i = 0; i < amount; i++)
+        {
+            var point  = random.Next(0, EmptyPoints.Count);
+            var weapon = random.Next(0,weapons.Count);
+            (int y, int x) = EmptyPoints[point];
+            World[y, x].TryAddItem(weapons[weapon]);
+        }
         
+
+    }
+
+    public static void AddItems(Field[,] World, List<IItem> items, int amount)
+    {
+        List<(int, int)> EmptyPoints = new List<(int, int)>();
+        for (int y = 1; y < World.GetLength(0) - 1; y++)
+        {
+            for (int x = 1; x < World.GetLength(1) - 1; x++)
+            {
+                if(World[y, x].CanBeEntered) EmptyPoints.Add((y, x));
+            }
+        }
+        
+        Random random = new Random(DateTime.Now.Microsecond);
+        for (int i = 0; i < amount; i++)
+        {
+            var point  = random.Next(0, EmptyPoints.Count);
+            var item = random.Next(0,items.Count);
+            (int y, int x) = EmptyPoints[point];
+            World[y, x].TryAddItem(items[item]);
+        }
+    }
+    public static void AddChambers(Field[,] World)
+    {
+        List<Square> chambers = new List<Square>();
+        Random rand = new Random(DateTime.Now.Microsecond);
+        int amount = rand.Next(4, 11);
+        int retry = 0;
+        while (true)
+        {
+            if (chambers.Count >= amount||retry>=5)
+            {
+                break;
+            }
+
+            int w = rand.Next(3, 6);
+            int h = rand.Next(3, 6);
+            int x = rand.Next(1, World.GetLength(1)-w-1);
+            int y = rand.Next(1, World.GetLength(0)-h-1);
+            Square new_chamber = new Square(x,y,x+w, y+h);
+            if (!intersects(new_chamber))
+            {
+                chambers.Add(new_chamber);
+                retry = 0;
+            }
+            else
+            {
+                retry++;
+            }
+        }
+        foreach(Square chamber in chambers)
+        {
+            for(int i=chamber.y1; i<chamber.y2; i++)
+            {
+                for(int j=chamber.x1; j<chamber.x2; j++)
+                {
+                    World[i, j] = new EmptyField();
+                }
+            }
+        }
+        EnsureConnectedness(World);
+        return;
+        bool intersects(Square square)
+        {
+            foreach (var chamber in chambers)
+            {
+                var ax1 = square.x1 - 1;
+                var ay1 = square.y1 - 1;
+                var ax2 = square.x2;
+                var ay2 = square.y2;
+
+                var bx1 = chamber.x1 - 1;
+                var by1 = chamber.y1 - 1;
+                var bx2 = chamber.x2;
+                var by2 = chamber.y2;
+
+                if (ax1 <= bx2 && ax2 >= bx1 && ay1 <= by2 && ay2 >= by1)
+                    return true;
+            }
+            return false;
+        }
+
+    }
+    public static void FilledDungeon(Field[,] World)
+    {
+        for (var y = 0; y < World.GetLength(0); y++)
+        for (var x = 0; x < World.GetLength(1); x++)
+            World[y, x] = new NonEnterableField();
+    }
+
+    public static void EmptyDungeon(Field[,] World)
+    {
+        for (var y = 0; y < World.GetLength(0); y++)
+        for (var x = 0; x < World.GetLength(1); x++)
+            World[y, x] = new EmptyField();
+
+        CloseBorders(World);
+    }
+
+    private static void CloseBorders(Field[,] World)
+    {
+        var height = World.GetLength(0);
+        var width = World.GetLength(1);
+        for (var y = 0; y < height; y++)
+        {
+            World[y, 0] = new NonEnterableField();
+            World[y, width - 1] = new NonEnterableField();
+        }
+
+        for (var x = 0; x < width; x++)
+        {
+            World[0, x] = new NonEnterableField();
+            World[height - 1, x] = new NonEnterableField();
+        }
     }
 }

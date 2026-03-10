@@ -1,20 +1,20 @@
 namespace OODProject;
+
 public class Gold(int amount) : Currency
 {
-    private int _amount=amount;
-    public int amount { get => _amount; set  => _amount = value; }
-    public void OnPickup(Hero Player)
+    public int amount { get; set; } = amount;
+
+    public bool OnPickup(Hero Player)
     {
-        Player.AddGold(_amount);
-        MessageBus.Send($"Player picked up {_amount} gold");
+        Player.AddGold(amount);
+        MessageBus.Send($"Player picked up {amount} gold");
+        return true;
     }
 
-    private char _glyph = 'C';
-    private string _name = $"Gold ({amount.ToString()})";
-    private string _description = "Precious metal";
-    public char Glyph { get=>_glyph; set=>_glyph=value; }
-    public string Description { get=>_description; set=> _description=value; }
-    public string Name { get=>_name; set=>_name=value; }
+    public char Glyph { get; set; } = 'C';
+    public string Description { get; set; } = "Precious metal";
+    public string Name { get; set; } = $"Gold ({amount.ToString()})";
+
     public string Message()
     {
         throw new NotImplementedException();
@@ -23,21 +23,18 @@ public class Gold(int amount) : Currency
 
 public class Coins(int amount) : Currency
 {
-    private int _amount = amount;
-    public int amount { get => _amount; set  => _amount = value; }
-    
+    public int amount { get; set; } = amount;
+    public char Glyph { get; set; } = 'C';
+    public string Description { get; set; } = "Currency of this world";
+    public string Name { get; set; } = $"Coins ({amount.ToString()})";
 
-    private char _glyph = 'C';
-    private string _name = $"Coins ({amount.ToString()})";
-    private string _description = "Currency of this world";
-    public char Glyph { get=>_glyph; set=>_glyph=value; }
-    public string Description { get=>_description; set=> _description=value; }
-    public string Name { get=>_name; set=>_name=value; }
-    public void OnPickup(Hero Player)
+    public bool OnPickup(Hero Player)
     {
-        Player.AddCoins(_amount);
-        MessageBus.Send($"Player picked up {_amount} coins");
+        Player.AddCoins(amount);
+        MessageBus.Send($"Player picked up {amount} coins");
+        return true;
     }
+
     public string Message()
     {
         throw new NotImplementedException();

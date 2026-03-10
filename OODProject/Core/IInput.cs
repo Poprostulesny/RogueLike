@@ -2,167 +2,140 @@ using System.Text;
 
 namespace OODProject;
 
-public  interface  IInput
+public interface IInput
 {
-   public bool TakeInput();
-   public void Initialize(ref GameWorld gameWorld);
+    public bool TakeInput();
+    public void Initialize(ref GameWorld gameWorld);
 }
 
-public class KeyboardInput() : IInput
+public class KeyboardInput : IInput
 {
-    private GameWorld _gameWorld;
-    private WorldUtils utils;
+    private GameWorld? _gameWorld;
+    private readonly Dictionary<ConsoleKey, Action> dict = new();
+    private bool quitflag = true;
+    private WorldUtils? utils;
 
-    public void  Initialize(ref GameWorld gameWorld)
+    public void Initialize(ref GameWorld gameWorld)
     {
-    _gameWorld = gameWorld;
-     utils = new WorldUtils(ref gameWorld);
+        _gameWorld = gameWorld;
+        utils = new WorldUtils(ref gameWorld);
+        dict.Add(ConsoleKey.UpArrow, () => utils.MoveHero(Direction.Up));
+        dict.Add(ConsoleKey.DownArrow, () => utils.MoveHero(Direction.Down));
+        dict.Add(ConsoleKey.LeftArrow, () => utils.MoveHero(Direction.Left));
+        dict.Add(ConsoleKey.RightArrow, () => utils.MoveHero(Direction.Right));
+        dict.Add(ConsoleKey.W, () => utils.MoveHero(Direction.Up));
+        dict.Add(ConsoleKey.S, () => utils.MoveHero(Direction.Down));
+        dict.Add(ConsoleKey.A, () => utils.MoveHero(Direction.Left));
+        dict.Add(ConsoleKey.D, () => utils.MoveHero(Direction.Right));
+        dict.Add(ConsoleKey.E, () => TryPickupItem());
+        dict.Add(ConsoleKey.I, () => ChooseItemToEquip());
+        dict.Add(ConsoleKey.X, () => ChooseItemToDrop());
+        dict.Add(ConsoleKey.H, () => ChooseHandToFree());
+        dict.Add(ConsoleKey.B, () => Quit());
     }
+
     public bool TakeInput()
     {
-        
-        ConsoleKeyInfo key = Console.ReadKey(true);
-        switch (key.Key)
+        var key = Console.ReadKey(true);
+
+        if (dict.ContainsKey(key.Key))
+            dict[key.Key]();
+        else
+            MessageBus.Send("Invalid input");
+
+
+        return quitflag;
+    }
+
+    public void Quit()
+    {
+        MessageBus.Send("If you are sure you want to quit the game press B");
+        var inp = Console.ReadKey(true);
+        if (inp.Key == ConsoleKey.B) quitflag = true;
+    }
+
+    private void ChooseHandToFree()
+    {
+        MessageBus.Send("Choose hand to drop by pressing L or R");
+        var key = Console.ReadKey(true);
+        Hand hand;
+        if (key.Key == ConsoleKey.R)
         {
-            case ConsoleKey.UpArrow:
-                utils.MoveHero(Direction.Up);
-                break;
-            case ConsoleKey.DownArrow:
-                utils.MoveHero(Direction.Down);
-                break;
-            case ConsoleKey.LeftArrow:
-                utils.MoveHero(Direction.Left);
-                break;
-            case ConsoleKey.RightArrow:
-                utils.MoveHero(Direction.Right);
-                break;
-            case ConsoleKey.W:
-                utils.MoveHero(Direction.Up);
-                break;
-            case ConsoleKey.S:
-                utils.MoveHero(Direction.Down);
-                break;
-            case ConsoleKey.A:
-                utils.MoveHero(Direction.Left);
-                break;
-            case ConsoleKey.D:
-                utils.MoveHero(Direction.Right);
-                break;
-            case ConsoleKey.E:
-                TryPickupItem();
-                break;
-            case ConsoleKey.I:
-                ChooseItemToEquip();
-                break;
-            case ConsoleKey.X:
-                ChooseItemToDrop();
-                break;
-            case ConsoleKey.H:
-                ChooseHandToFree();
-                break;
-            case ConsoleKey.Escape:
-                MessageBus.Send("If you are sure you want to quit the game press Escape");
-                var inp = Console.ReadKey(true);
-                if (inp.Key == ConsoleKey.Escape)
-                {
-                    return false;
-                }
-                break;
-            
-                
+            hand = Hand.Right;
         }
-        void ChooseHandToFree()
+        else if (key.Key == ConsoleKey.L)
         {
-            MessageBus.Send("Choose hand to drop by pressing L or R");
-            ConsoleKeyInfo key = Console.ReadKey(true);
-            Hand hand; 
-            if (key.Key == ConsoleKey.R)
-            {
-                hand = Hand.Right;
-            }
-            else if (key.Key == ConsoleKey.L)
-            {
-                hand = Hand.Left;
-            }
-            else
-            {
-                MessageBus.Send("Invalid choice");
-                return;
-            }
-            
-            IInventoryItem? item;
-            if ((item  = _gameWorld.Player.hands.TryRemove(hand, _gameWorld.Player) )== null)
-            {
-                MessageBus.Send("You don't have anything in this hand");
-            }
-            else
-            {
-                MessageBus.Send($"{item.Name} freed from hands");
-            }
+            hand = Hand.Left;
+        }
+        else
+        {
+            MessageBus.Send("Invalid choice");
+            return;
         }
 
-        return true;
+        IInventoryItem? item;
+        if ((item = _gameWorld.Player.hands.TryRemove(hand, _gameWorld.Player)) == null)
+            MessageBus.Send("You don't have anything in this hand");
+        else
+            MessageBus.Send($"{item.Name} freed from hands");
     }
-    void ChooseItemToDrop()
+
+    private void ChooseItemToDrop()
     {
-        MessageBus.Send("Choose item number to drop");
-        int cnt = _gameWorld.Player.inventory.Items.Count;
+       
+        var cnt = _gameWorld.Player.inventory.Items.Count;
         if (cnt == 0)
         {
             MessageBus.Send("You don't have anything to drop");
             return;
         }
-
-        int num = KeyboardUtils.ReadNumber();
-        if ( num < 1 || num > cnt)
+        MessageBus.Send("Choose item number to drop");
+        var num = KeyboardUtils.ReadNumber();
+        if (num < 1 || num > cnt)
         {
             MessageBus.Send("Invalid choice");
             return;
         }
 
         num -= 1;
-
+        var msg = _gameWorld.Player.inventory.Items[num].Name;
         utils.DropItem(_gameWorld.Player.inventory.Items[num]);
-
-
+        MessageBus.Send($"You have dropped {msg}");
     }
-    void ChooseItemToEquip()
+
+    private void ChooseItemToEquip()
     {
         MessageBus.Send("Choose item number to equip");
-        int cnt = _gameWorld.Player.inventory.Items.Count;
+        var cnt = _gameWorld.Player.inventory.Items.Count;
         if (cnt == 0)
         {
             MessageBus.Send("You don't have anything to equip");
             return;
         }
 
-        int num = KeyboardUtils.ReadNumber();
-       
-        if ( num < 1 || num > cnt)
-        {  
+        var num = KeyboardUtils.ReadNumber();
+
+        if (num < 1 || num > cnt)
+        {
             MessageBus.Send("Invalid choice");
             return;
         }
 
         num -= 1;
-        
+
 
         if (_gameWorld.Player.inventory.Items[num].isTwoHanded)
         {
             if (_gameWorld.Player.hands.TryEquip(_gameWorld.Player.inventory.Items[num], Hand.Left, _gameWorld.Player))
-            {
                 MessageBus.Send($"{_gameWorld.Player.inventory.Items[num].Name} succesfully equipped");
-            }
             else
-            {
-                MessageBus.Send($"Empty your hands before equipping");
-            }
+                MessageBus.Send("Empty your hands before equipping");
         }
         else
         {
             MessageBus.Send("Choose hand to equip by pressing L or R");
-            ConsoleKeyInfo key = Console.ReadKey(true);
-            Hand hand; 
+            var key = Console.ReadKey(true);
+            Hand hand;
             if (key.Key == ConsoleKey.R)
             {
                 hand = Hand.Right;
@@ -178,18 +151,15 @@ public class KeyboardInput() : IInput
             }
 
             if (_gameWorld.Player.hands.TryEquip(_gameWorld.Player.inventory.Items[num], hand, _gameWorld.Player))
-            {
                 MessageBus.Send($"{_gameWorld.Player.inventory.Items[num].Name} equipped");
-            }
             else
-            {
-                MessageBus.Send($"Empty your hands before equipping");
-            }
+                MessageBus.Send("Empty your hands before equipping");
         }
-        
     }
-    void TryPickupItem()    
+
+    private void TryPickupItem()
     {
+        
         if (_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items.Count <= 0)
         {
             MessageBus.Send("You don't have anything to pickup");
@@ -197,49 +167,55 @@ public class KeyboardInput() : IInput
         }
 
         if (_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items.Count == 1)
-        {   var it = _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[0];
-            if(_gameWorld.World[_gameWorld.Player.PosY,_gameWorld.Player.PosX].TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY,_gameWorld.Player.PosX].Items[0])==true)
-            {   it.OnPickup(_gameWorld.Player); 
-                MessageBus.Send("Item picked up successfully");
+        {
+            var it = _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[0];
+            if (_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
+                .TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[0])&& it.OnPickup(_gameWorld.Player))
+            {
+                
+                
             }
             else
             {
-                MessageBus.Send($"You can't pick it up");
+                _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
+            .TryAddItem(it);
+                MessageBus.Send("You can't pick it up");
             }
+
             return;
         }
+
         MessageBus.Send("Choose item number to pick up");
-        int cnt = KeyboardUtils.ReadNumber();
+        var cnt = KeyboardUtils.ReadNumber();
         if (cnt < 1 || cnt >= _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items.Count)
-        {
             MessageBus.Send("Invalid choice");
-        }
 
         cnt--;
 
         var item = _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[cnt];
-        if(_gameWorld.World[_gameWorld.Player.PosY,_gameWorld.Player.PosX].TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY,_gameWorld.Player.PosX].Items[cnt])==true)
-        {   item.OnPickup(_gameWorld.Player); 
-            MessageBus.Send("Item picked up successfully");
+        if (_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
+            .TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[cnt])&& item.OnPickup(_gameWorld.Player))
+        {
+            
+           
         }
         else
         {
-            MessageBus.Send($"You can't pick it up");
+            _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
+            .TryAddItem(item);
+            MessageBus.Send("You can't pick it up");
         }
-
-        return;
     }
 }
 
-
 public class WorldUtils(ref GameWorld gameWorld)
 {
-    private GameWorld _gameWorld = gameWorld;
+    private readonly GameWorld _gameWorld = gameWorld;
+
     public void MoveHero(Direction dir)
     {
-       
-        int xplus=0;
-        int yplus=0;
+        var xplus = 0;
+        var yplus = 0;
         switch (dir)
         {
             case Direction.Up:
@@ -255,37 +231,29 @@ public class WorldUtils(ref GameWorld gameWorld)
                 xplus = 1;
                 break;
         }
-        
-           
 
-        int oldX = _gameWorld.Player.PosX;
-        int oldY = _gameWorld.Player.PosY;
-        int newX = oldX + xplus;
-        int newY = oldY + yplus;
 
-        if (_gameWorld.World[newY, newX].TryAddHero(ref _gameWorld.Player,newX, newY))
+        var oldX = _gameWorld.Player.PosX;
+        var oldY = _gameWorld.Player.PosY;
+        var newX = oldX + xplus;
+        var newY = oldY + yplus;
+
+        if (_gameWorld.World[newY, newX].TryAddHero(ref _gameWorld.Player, newX, newY))
         {
-            _gameWorld.World[oldY, oldX].RemoveHero(); 
+            _gameWorld.World[oldY, oldX].RemoveHero();
             MessageBus.Send($"Hero moved to {newX} {newY}");
         }
-          
-        
     }
 
     public bool DropItem(IInventoryItem which)
     {
-        if (_gameWorld.Player.hands.Left == which )
-        {
+        if (_gameWorld.Player.hands.Left == which)
             _gameWorld.Player.hands.TryRemove(Hand.Left, _gameWorld.Player);
-            
-        }
         else if (_gameWorld.Player.hands.Right == which)
-        {
             _gameWorld.Player.hands.TryRemove(Hand.Right, _gameWorld.Player);
-        }
-        
-        var ret  =  _gameWorld.World[_gameWorld.Player.PosX, _gameWorld.Player.PosY].TryAddItem(which);
-        if(ret)_gameWorld.Player.inventory.Remove(which);
+
+        var ret = _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].TryAddItem(which);
+        if (ret) _gameWorld.Player.inventory.Remove(which);
         return ret;
     }
 }
@@ -301,22 +269,16 @@ public static class KeyboardUtils
             var k = Console.ReadKey(true);
             if (k.Key == ConsoleKey.Enter)
             {
-
-                if (Int32.TryParse(sb.ToString(), out  i) == true)
-                {
-                    break;
-                }
+                if (int.TryParse(sb.ToString(), out i)) break;
                 sb.Clear();
-                
-            };
+            }
+
+            ;
             if (char.IsDigit(k.KeyChar)) sb.Append(k.KeyChar);
             if (k.Key == ConsoleKey.Backspace && sb.Length > 0) sb.Length--;
-          
         }
 
-        
+
         return i;
     }
 }
-
-

@@ -2,12 +2,12 @@
 
 namespace OODProject;
 
-class Program
+internal class Program
 {
-    static void Main(string[] args)
+    private static void Main(string[] args)
     {
-        KeyboardInput input = new KeyboardInput();
-        Renderer Engine = new Renderer(input);
+        var input = new KeyboardInput();
+        var Engine = new Renderer(input);
         Engine.Play();
     }
 }

@@ -1,63 +1,50 @@
-using System.Text;
-
 namespace OODProject;
-
 
 public class GameWorld
 {
-    public Field[,] World = new Field[42,22];
-    public Hero Player = new Hero();
-    private List<(int x, int y)> free_spaces;
    
-    Random rand = new Random(DateTime.Now.Microsecond);
-    public void AddItemRandomly(IItem item)
-    {
-       
-        while (true)
-        {
-            int pick = rand.Next(0, free_spaces.Count);
-            int x, y;
-            (x,y) =  free_spaces[pick];
-            if (World[y, x].TryAddItem(item))
-            {
-                break;
-            }
-        }
-        
-    }
+    public Hero Player = new();
 
-    public void CreateEmptyBlockList()
-    {
-        free_spaces = new List<(int x, int y)>();
-        for(int x=0; x < 22;x++)
-        {
-            for (int y = 0; y < 42; y++)
-            {
-                if (World[y, x].CanBeEntered)
-                {
-                    free_spaces.Add((x, y));
-                }
-            }
-        }
-        
-    }
+    
+    public Field[,] World = new Field[42, 22];
+
     public GameWorld()
     {
-        WorldGenerator.MazeWithRooms(ref World);
+        /*WorldGenerator.MazeWithRooms(World);
         CreateEmptyBlockList();
-        World[1, 1].TryAddHero(ref Player, 1,1);
+        World[1, 1].TryAddHero(ref Player, 1, 1);
         AddItemRandomly(new Gold(10));
         AddItemRandomly(new Coins(10));
         AddItemRandomly(new Broomstick());
         AddItemRandomly(new DragonSlayerSword());
         AddItemRandomly(new Teapot());
         AddItemRandomly(new BrokenSword());
-        AddItemRandomly(new RustySword());
+        AddItemRandomly(new RustySword());*/
+        WorldGeneratorNew.FilledDungeon(World);
+        //WorldGeneratorNew.AddPaths(World, 10);
+        WorldGeneratorNew.AddChambers(World);
+        WorldGeneratorNew.AddPaths(World, 10);
+        WorldGeneratorNew.AddCentralRoom(World, 7, 10);
+        List<IItem> items = new List<IItem>()
+        {
+            new Gold(10),
+            new Coins(10),
+            new Broomstick(),
+            new Teapot(),
+            new BrokenSword()
+        };
+        
+        List<IInventoryItem> weapons = new List<IInventoryItem>()
+        {
+            new DragonSlayerSword(),
+            new RustySword(),
+            new Shield()
+        };
+        WorldGeneratorNew.AddItems(World, items, 15);
+        WorldGeneratorNew.AddWeapons(World, weapons, 10);
+        World[1, 1].TryAddHero(ref Player, 1, 1);
+        
     }
-    
 
-
-   
-
-   
+ 
 }
