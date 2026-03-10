@@ -20,11 +20,6 @@ public class Hero : IDescribable
 
     public string Name => "Hero";
 
-    public string Message()
-    {
-        throw new NotImplementedException();
-    }
-
 
     public void TakeDamage(int amount)
     {

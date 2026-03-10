@@ -28,7 +28,7 @@ public class EmptyField : Field
 
     public char Glyph { get; private set; } = ' ';
 
-    public string Description => Message();
+    public string Description => "Empty Field";
     public string Name => "Empty Field";
 
     public bool TryAddItem(IItem item)
@@ -58,12 +58,6 @@ public class EmptyField : Field
     {
         Player = null;
         UpdateGlyph();
-    }
-
-
-    public string Message()
-    {
-        throw new NotImplementedException();
     }
 
 
@@ -137,10 +131,6 @@ public class NonEnterableField : Field
     public string Description => "Non Enterable Field";
     public string Name => "Non Enterable Field";
 
-    public string Message()
-    {
-        throw new NotImplementedException();
-    }
 
     public string[] Display()
     {

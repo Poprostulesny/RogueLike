@@ -14,11 +14,6 @@ public class Gold(int amount) : Currency
     public char Glyph { get; set; } = 'C';
     public string Description { get; set; } = "Precious metal";
     public string Name { get; set; } = $"Gold ({amount.ToString()})";
-
-    public string Message()
-    {
-        throw new NotImplementedException();
-    }
 }
 
 public class Coins(int amount) : Currency
@@ -33,10 +28,5 @@ public class Coins(int amount) : Currency
         Player.AddCoins(amount);
         MessageBus.Send($"Player picked up {amount} coins");
         return true;
-    }
-
-    public string Message()
-    {
-        throw new NotImplementedException();
     }
 }

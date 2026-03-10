@@ -4,21 +4,25 @@ namespace OODProject;
 
 public interface IInput
 {
+    public Dictionary<GameObjects, string> Description { get; }
     public bool TakeInput();
-    public void Initialize(ref GameWorld gameWorld);
+    public void Initialize(GameWorld gameWorld);
 }
 
 public class KeyboardInput : IInput
 {
-    private GameWorld? _gameWorld;
     private readonly Dictionary<ConsoleKey, Action> dict = new();
+    private GameWorld? _gameWorld;
+    private Dictionary<GameObjects, string> description = new();
+
     private bool quitflag = true;
     private WorldUtils? utils;
 
-    public void Initialize(ref GameWorld gameWorld)
+    public void Initialize(GameWorld gameWorld)
     {
         _gameWorld = gameWorld;
-        utils = new WorldUtils(ref gameWorld);
+        utils = new WorldUtils(gameWorld);
+
         dict.Add(ConsoleKey.UpArrow, () => utils.MoveHero(Direction.Up));
         dict.Add(ConsoleKey.DownArrow, () => utils.MoveHero(Direction.Down));
         dict.Add(ConsoleKey.LeftArrow, () => utils.MoveHero(Direction.Left));
@@ -32,7 +36,12 @@ public class KeyboardInput : IInput
         dict.Add(ConsoleKey.X, () => ChooseItemToDrop());
         dict.Add(ConsoleKey.H, () => ChooseHandToFree());
         dict.Add(ConsoleKey.B, () => Quit());
+        description.Add(GameObjects.Movement, "WASD or arrows - Movement");
+        description.Add(GameObjects.Item, "I - choosing item to equip into the hands|H - Freeing hands|E - Picking up item|X - Dropping an item");
+        description.Add(GameObjects.Quitting, "B - Quitting");
     }
+
+    public Dictionary<GameObjects, string> Description { get=>description; }
 
     public bool TakeInput()
     {
@@ -47,11 +56,11 @@ public class KeyboardInput : IInput
         return quitflag;
     }
 
-    public void Quit()
+    private void Quit()
     {
         MessageBus.Send("If you are sure you want to quit the game press B");
         var inp = Console.ReadKey(true);
-        if (inp.Key == ConsoleKey.B) quitflag = true;
+        if (inp.Key == ConsoleKey.B) quitflag = false;
     }
 
     private void ChooseHandToFree()
@@ -82,13 +91,13 @@ public class KeyboardInput : IInput
 
     private void ChooseItemToDrop()
     {
-       
         var cnt = _gameWorld.Player.inventory.Items.Count;
         if (cnt == 0)
         {
             MessageBus.Send("You don't have anything to drop");
             return;
         }
+
         MessageBus.Send("Choose item number to drop");
         var num = KeyboardUtils.ReadNumber();
         if (num < 1 || num > cnt)
@@ -159,7 +168,6 @@ public class KeyboardInput : IInput
 
     private void TryPickupItem()
     {
-        
         if (_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items.Count <= 0)
         {
             MessageBus.Send("You don't have anything to pickup");
@@ -170,15 +178,14 @@ public class KeyboardInput : IInput
         {
             var it = _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[0];
             if (_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
-                .TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[0])&& it.OnPickup(_gameWorld.Player))
+                    .TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[0]) &&
+                it.OnPickup(_gameWorld.Player))
             {
-                
-                
             }
             else
             {
                 _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
-            .TryAddItem(it);
+                    .TryAddItem(it);
                 MessageBus.Send("You can't pick it up");
             }
 
@@ -187,28 +194,30 @@ public class KeyboardInput : IInput
 
         MessageBus.Send("Choose item number to pick up");
         var cnt = KeyboardUtils.ReadNumber();
-        if (cnt < 1 || cnt >= _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items.Count)
+        if (cnt < 1 || cnt > _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items.Count)
+        {
             MessageBus.Send("Invalid choice");
+            return;
+        }
 
         cnt--;
 
         var item = _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[cnt];
         if (_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
-            .TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[cnt])&& item.OnPickup(_gameWorld.Player))
+                .TryTakeItem(_gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX].Items[cnt]) &&
+            item.OnPickup(_gameWorld.Player))
         {
-            
-           
         }
         else
         {
             _gameWorld.World[_gameWorld.Player.PosY, _gameWorld.Player.PosX]
-            .TryAddItem(item);
+                .TryAddItem(item);
             MessageBus.Send("You can't pick it up");
         }
     }
 }
 
-public class WorldUtils(ref GameWorld gameWorld)
+public class WorldUtils(GameWorld gameWorld)
 {
     private readonly GameWorld _gameWorld = gameWorld;
 

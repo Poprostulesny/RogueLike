@@ -113,7 +113,7 @@ public class Inventory(int _capacity)
             return true;
         }
 
-       
+
         return false;
     }
 

@@ -21,10 +21,6 @@ public abstract class IInventoryItem(string name, string description, char glyph
         return Player.TryTakeItem(this);
     }
 
-    public string Message()
-    {
-        throw new NotImplementedException();
-    }
 
     public bool TryEquip(Hero Player)
     {

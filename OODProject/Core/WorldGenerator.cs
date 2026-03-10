@@ -1,14 +1,49 @@
 namespace OODProject;
 
-public static class WorldGenerator
+public interface IDungeonBuildStep
 {
-    private static Direction GetRandomDirection(Random rand)
+    void Apply(DungeonBuildContext ctx);
+}
+
+public interface IDungeonBaseBuildStep : IDungeonBuildStep
+{
+}
+
+public interface IDungeonStrategy
+{
+    void Build(DungeonBuildContext ctx);
+}
+
+public sealed class DungeonBuildContext(
+    Field[,] world,
+    List<Func<IItem>>? items = null,
+    List<Func<IInventoryItem>>? weapons = null,
+    int _item_amount = 0,
+    int _weapon_amount = 0)
+{
+    public int item_amount = _item_amount;
+    public List<Func<IItem>>? Items = items;
+    public int weapon_amount = _weapon_amount;
+    public List<Func<IInventoryItem>>? Weapons = weapons;
+    public Field[,] World = world;
+
+    public SortedSet<GameObjects> Features { get; } = new();
+
+    public void AddFeature(GameObjects feature)
+    {
+        Features.Add(feature);
+    }
+}
+
+public static class WorldGeneratorUtils
+{
+    public static Direction GetRandomDirection(Random rand)
     {
         var rnd = rand.Next(0, 4);
         return (Direction)rnd;
     }
 
-    private static void NewXY(Direction dir, int x, int y)
+    public static void NewXY(Direction dir, ref int x, ref int y)
     {
         switch (dir)
         {
@@ -27,14 +62,174 @@ public static class WorldGenerator
         }
     }
 
+    public static void EnsureConnectedness(Field[,] World)
+    {
+        var clr_list = new List<List<(int, int)>>();
+        World[1, 1] = new EmptyField();
+        int[,] visited;
+        while (true)
+        {
+            visited = new int[World.GetLength(0), World.GetLength(1)];
+            var EnterableFields = new List<(int, int)>();
+            var empty_cnt = 0;
+            for (var y = 0; y < World.GetLength(0); y++)
+            for (var x = 0; x < World.GetLength(1); x++)
+                if (World[y, x].CanBeEntered)
+                {
+                    empty_cnt++;
+                    EnterableFields.Add((y, x));
+                }
+                else
+                {
+                    visited[y, x] = int.MaxValue;
+                }
+
+
+            clr_list.Clear();
+            var clr_cnt = 0;
+            foreach (var (y, x) in EnterableFields)
+                if (visited[y, x] == 0)
+                {
+                    clr_cnt++;
+                    clr_list.Add(new List<(int, int)>());
+                    dfs(clr_cnt, y, x, clr_list[clr_cnt - 1]);
+                }
+
+            if (clr_cnt == 1) return;
+
+            find_closest_and_connect(1, 2);
+        }
+
+
+        void find_closest_and_connect(int clra, int clrb)
+        {
+            var mindist = int.MaxValue;
+            (int ya, int xa, int yb, int xb) minpair = (0, 0, 0, 0);
+            foreach (var (ya, xa) in clr_list[clra - 1])
+            foreach (var (yb, xb) in clr_list[clrb - 1])
+            {
+                var dist = Math.Abs(yb - ya) + Math.Abs(xb - xa);
+                if (dist < mindist)
+                {
+                    mindist = dist;
+                    minpair = (ya, xa, yb, xb);
+                }
+            }
+
+            AddPath(minpair.xa, minpair.ya, minpair.xb, minpair.yb, Random.Shared.Next(1, 3), World);
+        }
+
+        void dfs(int clr, int y, int x, List<(int, int)> clr_list)
+        {
+            visited[y, x] = clr;
+            clr_list.Add((y, x));
+            for (var i = 0; i < 4; i++)
+            {
+                int nx = x, ny = y;
+                NewXY((Direction)i, ref nx, ref ny);
+                if (visited[ny, nx] == 0) dfs(clr, ny, nx, clr_list);
+            }
+        }
+    }
+
+    public static void AddPath(int startX, int startY, int endX, int endY, int shape, Field[,] World)
+    {
+        var x = startX;
+        var y = startY;
+        var y_increment = endY > startY ? 1 : -1;
+        var x_increment = endX > startX ? 1 : -1;
+        if (shape == 1)
+        {
+            while (x != endX)
+            {
+                World[y, x] = new EmptyField();
+                x += x_increment;
+            }
+
+            while (y != endY)
+            {
+                World[y, x] = new EmptyField();
+                y += y_increment;
+            }
+        }
+        else
+        {
+            while (y != endY)
+            {
+                World[y, x] = new EmptyField();
+                y += y_increment;
+            }
+
+            while (x != endX)
+            {
+                World[y, x] = new EmptyField();
+                x += x_increment;
+            }
+        }
+    }
+
+    public static void CloseBorders(Field[,] World)
+    {
+        var height = World.GetLength(0);
+        var width = World.GetLength(1);
+        for (var y = 0; y < height; y++)
+        {
+            World[y, 0] = new NonEnterableField();
+            World[y, width - 1] = new NonEnterableField();
+        }
+
+        for (var x = 0; x < width; x++)
+        {
+            World[0, x] = new NonEnterableField();
+            World[height - 1, x] = new NonEnterableField();
+        }
+    }
+}
+
+public sealed class DrunkardsWalk : IDungeonBuildStep
+{
+    public void Apply(DungeonBuildContext ctx)
+    {
+        var World = ctx.World;
+        ctx.AddFeature(GameObjects.Movement);
+        var curx = 1;
+        var cury = 1;
+        World[1, 1] = new EmptyField();
+        var rand = new Random(DateTime.Now.Millisecond);
+
+
+        for (var i = 0; i < 20 * 40 * 3; i++)
+        {
+            var new_x = curx;
+            var new_y = cury;
+            do
+            {
+                new_x = curx;
+                new_y = cury;
+                var dir = WorldGeneratorUtils.GetRandomDirection(rand);
+                WorldGeneratorUtils.NewXY(dir, ref new_x, ref new_y);
+            } while (new_x < 1 || new_x > 20 || new_y < 1 || new_y > 40);
+
+            World[new_y, new_x] = new EmptyField();
+            curx = new_x;
+            cury = new_y;
+        }
+    }
+}
+
+public sealed class MazeWithRooms : IDungeonBuildStep
+{
     /*
         code from https://github.com/munificent/hauberk/blob/db360d9efa714efb6d937c31953ef849c7394a39/lib/src/content/dungeon.dart
         translated into c#
         i dont rly understand whats going on but it works
         my additions are forcing room of size 3 at 1,1 and ensuring it is connected
         */
-    public static void MazeWithRooms(Field[,] World)
+
+    public void Apply(DungeonBuildContext ctx)
     {
+        var World = ctx.World;
+        ctx.AddFeature(GameObjects.Movement);
         var height = World.GetLength(0);
         var width = World.GetLength(1);
 
@@ -255,20 +450,6 @@ public static class WorldGenerator
             }
         }
 
-        void CloseBorders()
-        {
-            for (var y = 0; y < height; y++)
-            {
-                open[y, 0] = false;
-                open[y, width - 1] = false;
-            }
-
-            for (var x = 0; x < width; x++)
-            {
-                open[0, x] = false;
-                open[height - 1, x] = false;
-            }
-        }
 
         bool[,] FloodFromStart()
         {
@@ -394,300 +575,142 @@ public static class WorldGenerator
             open[ry, rx] = true;
 
         ConnectAllComponentsToStart();
-        CloseBorders();
 
 
-        for (var y = 0; y < height; y++)
-        for (var x = 0; x < width; x++)
+        for (var y = 1; y < height - 1; y++)
+        for (var x = 1; x < width - 1; x++)
             if (open[y, x])
                 World[y, x] = new EmptyField();
-            else
-                World[y, x] = new NonEnterableField();
-    }
 
-    public static void DrunkardsWalk(Field[,] World)
-    {
-        var curx = 1;
-        var cury = 1;
-        var rand = new Random(DateTime.Now.Millisecond);
-        var visited = new bool[42, 22];
-        for (var i = 0; i < 42; i++)
-        {
-            visited[i, 0] = false;
-            visited[i, 21] = false;
-        }
-
-        for (var i = 0; i < 22; i++)
-        {
-            visited[0, i] = false;
-            visited[41, i] = false;
-        }
-
-        for (var i = 0; i < 20 * 40 * 3; i++)
-        {
-            var new_x = curx;
-            var new_y = cury;
-            do
-            {
-                new_x = curx;
-                new_y = cury;
-                var dir = GetRandomDirection(rand);
-                NewXY(dir, new_x, new_y);
-            } while (new_x < 1 || new_x > 20 || new_y < 1 || new_y > 40);
-
-            visited[new_y, new_x] = true;
-            curx = new_x;
-            cury = new_y;
-        }
-
-
-        for (var y = 0; y < 42; y++)
-        for (var x = 0; x < 22; x++)
-            if (!visited[y, x])
-                World[y, x] = new NonEnterableField();
-            else
-                World[y, x] = new EmptyField();
+        WorldGeneratorUtils.EnsureConnectedness(World);
     }
 }
 
-public static class WorldGeneratorNew
+public sealed class AddCentralRoom(int _w, int _h) : IDungeonBuildStep
 {
- 
+    private readonly int h = _h;
+    private readonly int w = _w;
 
-    private static void NewXY(Direction dir, ref int x,ref  int y)
+    public void Apply(DungeonBuildContext ctx)
     {
-        switch (dir)
-        {
-            case Direction.Up:
-                y = y - 1;
-                break;
-            case Direction.Down:
-                y = y + 1;
-                break;
-            case Direction.Left:
-                x = x - 1;
-                break;
-            case Direction.Right:
-                x = x + 1;
-                break;
-        }
+        var World = ctx.World;
+        var midy = World.GetLength(0) / 2;
+        var midx = World.GetLength(1) / 2;
+        var startx = Math.Max(0, midx - w / 2);
+        var starty = Math.Max(0, midy - h / 2);
+        for (var y = starty; y < Math.Min(starty + h, World.GetLength(0) - 1); y++)
+        for (var x = startx; x < Math.Min(startx + w, World.GetLength(1) - 1); x++)
+            World[y, x] = new EmptyField();
+
+        WorldGeneratorUtils.EnsureConnectedness(World);
+        ctx.AddFeature(GameObjects.Movement);
     }
+}
 
-    private static void EnsureConnectedness(Field[,] World)
+public sealed class AddWeapons(List<Func<IInventoryItem>> _weapons) : IDungeonBuildStep
+{
+    private readonly List<Func<IInventoryItem>> Weapons = _weapons;
+
+    public void Apply(DungeonBuildContext ctx)
     {
-        var clr_list = new List<List<(int, int)>>();
-        World[1, 1] = new EmptyField();
-        int[,] visited;
-        while (true)
-        {
-            visited = new int[World.GetLength(0), World.GetLength(1)];
-            var EnterableFields = new List<(int, int)>();
-            var empty_cnt = 0;
-            for (var y = 0; y < World.GetLength(0); y++)
-            for (var x = 0; x < World.GetLength(1); x++)
-                if (World[y, x].CanBeEntered)
-                {
-                    empty_cnt++;
-                    EnterableFields.Add((y, x));
-                }
-                else
-                {
-                    visited[y, x] = int.MaxValue;
-                }
+        var World = ctx.World;
 
 
-            clr_list.Clear();
-            var clr_cnt = 0;
-            foreach (var (y, x) in EnterableFields)
-                if (visited[y, x] == 0)
-                {
-                    clr_cnt++;
-                    clr_list.Add(new List<(int, int)>());
-                    dfs(clr_cnt, y, x, clr_list[clr_cnt - 1]);
-                    
-                    
-                }
-
-            if (clr_cnt == 1) return;
-
-             find_closest_and_connect(1, 2);
-        }
+        var EmptyPoints = new List<(int, int)>();
+        for (var y = 1; y < World.GetLength(0) - 1; y++)
+        for (var x = 1; x < World.GetLength(1) - 1; x++)
+            if (World[y, x].CanBeEntered)
+                EmptyPoints.Add((y, x));
 
 
-      
-
-        void find_closest_and_connect(int clra, int clrb)
-        {
-            var mindist = int.MaxValue;
-            (int ya, int xa, int yb, int xb) minpair = (0, 0, 0, 0);
-            foreach (var (ya, xa) in clr_list[clra - 1])
-            foreach (var (yb, xb) in clr_list[clrb - 1])
-            {
-                var dist = Math.Abs(yb - ya) + Math.Abs(xb - xa);
-                if (dist < mindist)
-                {
-                    mindist = dist;
-                    minpair = (ya, xa, yb, xb);
-                }
-            }
-
-            AddPath(minpair.xa, minpair.ya, minpair.xb, minpair.yb, Random.Shared.Next(1,3), World);
-        }
-
-        void dfs(int clr, int y, int x, List<(int, int)> clr_list)
-        {
-            visited[y, x] = clr;
-            clr_list.Add((y, x));
-            for (var i = 0; i < 4; i++)
-            {
-                int nx = x, ny = y;
-                NewXY((Direction)i,ref nx,ref ny);
-                if (visited[ny, nx] == 0) dfs(clr, ny, nx, clr_list);
-            }
-        }
-    }
-
-    private static void AddPath(int startX, int startY, int endX, int endY, int shape, Field[,] World)
-    {
-        var x = startX;
-        var y = startY;
-        var y_increment = endY > startY ? 1 : -1;
-        var x_increment = endX > startX ? 1 : -1;
-        if (shape == 1)
-        {
-            while (x != endX)
-            {
-                World[y, x] = new EmptyField();
-                x+=x_increment;
-            }
-
-            while (y != endY)
-            {
-                World[y, x] = new EmptyField();
-                y+=y_increment;
-            }
-        }
-        else
-        {
-            while (y != endY)
-            {
-                World[y, x] = new EmptyField();
-                y+=y_increment;
-            }
-
-            while (x != endX)
-            {
-                World[y, x] = new EmptyField();
-                x+=x_increment;
-            }
-        }
-    }
-
-    public static void AddPaths(Field[,] World, int amount)
-    {
-        var height = World.GetLength(0);
-        var width = World.GetLength(1);
+        if (EmptyPoints.Count == 0 || Weapons.Count == 0) return;
         var random = new Random(DateTime.Now.Microsecond);
-
-        var PathCount = amount;
-        for (var i = 0; i < PathCount; i++)
+        for (var i = 0; i < ctx.weapon_amount; i++)
         {
-            var s_x = random.Next(1, width - 2);
-            var s_y = random.Next(1, height - 2);
-            var e_x = random.Next(1, width - 1);
-            var e_y = random.Next(1, height - 1);
-            var shape = random.Next(1, 3);
-            AddPath(s_x, s_y, e_x, e_y, shape, World);
+            var point = random.Next(0, EmptyPoints.Count);
+            var weapon = random.Next(0, Weapons.Count);
+            var (y, x) = EmptyPoints[point];
+            World[y, x].TryAddItem(Weapons[weapon]());
         }
 
-        EnsureConnectedness(World);
+        ctx.AddFeature(GameObjects.Item);
     }
+}
 
-    public static void AddCentralRoom(Field[,] World, int w, int h)
+public sealed class AddItems(List<Func<IItem>> _items) : IDungeonBuildStep
+{
+    private readonly List<Func<IItem>> items = _items;
+
+    public void Apply(DungeonBuildContext ctx)
     {
-        int midy = World.GetLength(0) / 2;
-        int midx = World.GetLength(1) / 2;
-        int startx = Math.Max(0,midx - w / 2);
-        int starty = Math.Max(0, midy - h / 2);
-        for (int y = starty; y < Math.Min(starty+h, World.GetLength(0)-1); y++)
+        var World = ctx.World;
+
+        if (items.Count == 0) return;
+        var EmptyPoints = new List<(int, int)>();
+        for (var y = 1; y < World.GetLength(0) - 1; y++)
+        for (var x = 1; x < World.GetLength(1) - 1; x++)
+            if (World[y, x].CanBeEntered)
+                EmptyPoints.Add((y, x));
+
+        if (EmptyPoints.Count == 0) return;
+        var random = new Random(DateTime.Now.Microsecond);
+        for (var i = 0; i < ctx.item_amount; i++)
         {
-            for (int x = startx; x < Math.Min(startx+w, World.GetLength(1)-1); x++)
-            {
-               World[y,x] = new EmptyField();
-            }
+            var point = random.Next(0, EmptyPoints.Count);
+            var item = random.Next(0, items.Count);
+            var (y, x) = EmptyPoints[point];
+            World[y, x].TryAddItem(items[item]());
         }
-        EnsureConnectedness(World);
+
+        ctx.AddFeature(GameObjects.Item);
     }
+}
 
-    struct Square(int _x1, int _y1, int _x2, int _y2)
+public sealed class FilledDungeon : IDungeonBaseBuildStep
+{
+    public void Apply(DungeonBuildContext ctx)
     {
-       public int x1 = _x1;
-       public int y1= _y1;
-       public int x2 = _x2;
-       public int y2 = _y2;
+        var World = ctx.World;
+        for (var y = 0; y < World.GetLength(0); y++)
+        for (var x = 0; x < World.GetLength(1); x++)
+            World[y, x] = new NonEnterableField();
     }
+}
 
-    public static void AddWeapons(Field[,] World, List<IInventoryItem> weapons, int amount)
+public sealed class EmptyDungeon : IDungeonBaseBuildStep
+{
+    public void Apply(DungeonBuildContext ctx)
     {
-        List<(int, int)> EmptyPoints = new List<(int, int)>();
-        for (int y = 1; y < World.GetLength(0) - 1; y++)
-        {
-            for (int x = 1; x < World.GetLength(1) - 1; x++)
-            {
-                if(World[y, x].CanBeEntered) EmptyPoints.Add((y, x));
-            }
-        }
-        
-        Random random = new Random(DateTime.Now.Microsecond);
-        for (int i = 0; i < amount; i++)
-        {
-            var point  = random.Next(0, EmptyPoints.Count);
-            var weapon = random.Next(0,weapons.Count);
-            (int y, int x) = EmptyPoints[point];
-            World[y, x].TryAddItem(weapons[weapon]);
-        }
-        
+        var World = ctx.World;
+        for (var y = 0; y < World.GetLength(0); y++)
+        for (var x = 0; x < World.GetLength(1); x++)
+            World[y, x] = new EmptyField();
 
+        WorldGeneratorUtils.CloseBorders(World);
+        ctx.AddFeature(GameObjects.Movement);
     }
+}
 
-    public static void AddItems(Field[,] World, List<IItem> items, int amount)
+public sealed class AddChambers(int _amount) : IDungeonBuildStep
+{
+    private readonly int amount = _amount;
+
+    public void Apply(DungeonBuildContext ctx)
     {
-        List<(int, int)> EmptyPoints = new List<(int, int)>();
-        for (int y = 1; y < World.GetLength(0) - 1; y++)
-        {
-            for (int x = 1; x < World.GetLength(1) - 1; x++)
-            {
-                if(World[y, x].CanBeEntered) EmptyPoints.Add((y, x));
-            }
-        }
-        
-        Random random = new Random(DateTime.Now.Microsecond);
-        for (int i = 0; i < amount; i++)
-        {
-            var point  = random.Next(0, EmptyPoints.Count);
-            var item = random.Next(0,items.Count);
-            (int y, int x) = EmptyPoints[point];
-            World[y, x].TryAddItem(items[item]);
-        }
-    }
-    public static void AddChambers(Field[,] World)
-    {
-        List<Square> chambers = new List<Square>();
-        Random rand = new Random(DateTime.Now.Microsecond);
-        int amount = rand.Next(4, 11);
-        int retry = 0;
+        var World = ctx.World;
+        var chambers = new List<Square>();
+        var rand = new Random(DateTime.Now.Microsecond);
+
+        var retry = 0;
         while (true)
         {
-            if (chambers.Count >= amount||retry>=5)
-            {
-                break;
-            }
+            if (chambers.Count >= amount || retry >= 5) break;
 
-            int w = rand.Next(3, 6);
-            int h = rand.Next(3, 6);
-            int x = rand.Next(1, World.GetLength(1)-w-1);
-            int y = rand.Next(1, World.GetLength(0)-h-1);
-            Square new_chamber = new Square(x,y,x+w, y+h);
+            var w = rand.Next(3, 6);
+            var h = rand.Next(3, 6);
+            var x = rand.Next(1, World.GetLength(1) - w - 1);
+            var y = rand.Next(1, World.GetLength(0) - h - 1);
+            var new_chamber = new Square(x, y, x + w, y + h);
             if (!intersects(new_chamber))
             {
                 chambers.Add(new_chamber);
@@ -698,18 +721,17 @@ public static class WorldGeneratorNew
                 retry++;
             }
         }
-        foreach(Square chamber in chambers)
-        {
-            for(int i=chamber.y1; i<chamber.y2; i++)
-            {
-                for(int j=chamber.x1; j<chamber.x2; j++)
-                {
-                    World[i, j] = new EmptyField();
-                }
-            }
-        }
-        EnsureConnectedness(World);
+
+        foreach (var chamber in chambers)
+            for (var i = chamber.y1; i < chamber.y2; i++)
+            for (var j = chamber.x1; j < chamber.x2; j++)
+                World[i, j] = new EmptyField();
+
+        WorldGeneratorUtils.EnsureConnectedness(World);
+        ctx.AddFeature(GameObjects.Movement);
+
         return;
+
         bool intersects(Square square)
         {
             foreach (var chamber in chambers)
@@ -727,40 +749,153 @@ public static class WorldGeneratorNew
                 if (ax1 <= bx2 && ax2 >= bx1 && ay1 <= by2 && ay2 >= by1)
                     return true;
             }
+
             return false;
         }
-
-    }
-    public static void FilledDungeon(Field[,] World)
-    {
-        for (var y = 0; y < World.GetLength(0); y++)
-        for (var x = 0; x < World.GetLength(1); x++)
-            World[y, x] = new NonEnterableField();
     }
 
-    public static void EmptyDungeon(Field[,] World)
+    private struct Square(int _x1, int _y1, int _x2, int _y2)
     {
-        for (var y = 0; y < World.GetLength(0); y++)
-        for (var x = 0; x < World.GetLength(1); x++)
-            World[y, x] = new EmptyField();
-
-        CloseBorders(World);
+        public readonly int x1 = _x1;
+        public readonly int y1 = _y1;
+        public readonly int x2 = _x2;
+        public readonly int y2 = _y2;
     }
+}
 
-    private static void CloseBorders(Field[,] World)
+public sealed class AddPaths(int _amount) : IDungeonBuildStep
+{
+    private readonly int amount = _amount;
+
+    public void Apply(DungeonBuildContext ctx)
     {
+        var World = ctx.World;
         var height = World.GetLength(0);
         var width = World.GetLength(1);
-        for (var y = 0; y < height; y++)
+        var random = new Random(DateTime.Now.Microsecond);
+
+        var PathCount = amount;
+        for (var i = 0; i < PathCount; i++)
         {
-            World[y, 0] = new NonEnterableField();
-            World[y, width - 1] = new NonEnterableField();
+            var s_x = random.Next(1, width - 2);
+            var s_y = random.Next(1, height - 2);
+            var e_x = random.Next(1, width - 1);
+            var e_y = random.Next(1, height - 1);
+            var shape = random.Next(1, 3);
+            WorldGeneratorUtils.AddPath(s_x, s_y, e_x, e_y, shape, World);
         }
 
-        for (var x = 0; x < width; x++)
-        {
-            World[0, x] = new NonEnterableField();
-            World[height - 1, x] = new NonEnterableField();
-        }
+        WorldGeneratorUtils.EnsureConnectedness(World);
+        ctx.AddFeature(GameObjects.Movement);
+    }
+}
+
+internal static class DungeonStrategyDefaults
+{
+    public static List<Func<IItem>> CreateItems()
+    {
+        return
+        [
+            () => new Gold(10),
+            () => new Coins(10),
+            () => new Broomstick(),
+            () => new Teapot(),
+            () => new BrokenSword()
+        ];
+    }
+
+    public static List<Func<IInventoryItem>> CreateWeapons()
+    {
+        return
+        [
+            () => new DragonSlayerSword(),
+            () => new RustySword(),
+            () => new Shield()
+        ];
+    }
+}
+
+public sealed class DungeonGrounds : IDungeonStrategy
+{
+    public void Build(DungeonBuildContext ctx)
+    {
+        var strategy = new StepSequenceStrategy(
+            new FilledDungeon(),
+            new AddChambers(5),
+            new AddPaths(10),
+            new AddCentralRoom(7, 10),
+            new AddItems(DungeonStrategyDefaults.CreateItems()),
+            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
+
+        ctx.item_amount = 15;
+        ctx.weapon_amount = 10;
+        strategy.Build(ctx);
+    }
+}
+
+public sealed class EmptyDungeonStrategy : IDungeonStrategy
+{
+    public void Build(DungeonBuildContext ctx)
+    {
+        var strategy = new StepSequenceStrategy(
+            new EmptyDungeon(),
+            new AddItems(DungeonStrategyDefaults.CreateItems()),
+            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
+
+        ctx.item_amount = 15;
+        ctx.weapon_amount = 10;
+        strategy.Build(ctx);
+    }
+}
+
+public sealed class ExtraFunDungeon : IDungeonStrategy
+{
+    public void Build(DungeonBuildContext ctx)
+    {
+        var strategy = new StepSequenceStrategy(
+            new FilledDungeon(),
+            new MazeWithRooms(),
+            new AddItems(DungeonStrategyDefaults.CreateItems()),
+            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
+
+        ctx.item_amount = 15;
+        ctx.weapon_amount = 10;
+        strategy.Build(ctx);
+    }
+}
+
+public sealed class DrunkenlyDrawnDungeon : IDungeonStrategy
+{
+    public void Build(DungeonBuildContext ctx)
+    {
+        var strategy = new StepSequenceStrategy(
+            new FilledDungeon(),
+            new DrunkardsWalk(),
+            new AddPaths(10),
+            new AddItems(DungeonStrategyDefaults.CreateItems()),
+            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
+
+        ctx.item_amount = 15;
+        ctx.weapon_amount = 10;
+        strategy.Build(ctx);
+    }
+}
+
+public sealed class StepSequenceStrategy : IDungeonStrategy
+{
+    private readonly IDungeonBaseBuildStep _base;
+    private readonly IReadOnlyList<IDungeonBuildStep> _steps;
+
+    public StepSequenceStrategy(IDungeonBaseBuildStep base_step, params IDungeonBuildStep[] steps)
+    {
+        _steps = steps;
+        _base = base_step;
+    }
+
+    public void Build(DungeonBuildContext context)
+    {
+        _base.Apply(context);
+        foreach (var step in _steps)
+            step.Apply(context);
     }
 }

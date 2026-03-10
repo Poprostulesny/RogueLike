@@ -5,6 +5,7 @@ namespace OODProject;
 public static class MessageBus
 {
     public static event Action<string>? Message;
+
     public static event Action? ClearMessage;
 
     public static void Send(string message)
@@ -23,33 +24,29 @@ public class Renderer
     private readonly IInput _input;
     private readonly StringBuilder DisplayMessage = new();
     private readonly GameWorld gameEngine;
-    private int msg_cnt;
-    private int prev_msg_cnt;
+    private StringBuilder InputMessage = new();
+
 
     public Renderer(IInput input)
     {
-        gameEngine = new GameWorld();
-        _input = input;
-        _input.Initialize(ref gameEngine);
-        Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
         MessageBus.Message += msg =>
         {
             DisplayMessage.AppendLine(msg);
-            msg_cnt++;
+
             DisplayWorldState();
         };
-        MessageBus.ClearMessage += () =>
-        {
-            prev_msg_cnt = msg_cnt;
-            msg_cnt = 0;
-            DisplayMessage.Clear();
-        };
+        MessageBus.ClearMessage += () => { DisplayMessage.Clear(); };
+
+        gameEngine = new GameWorld();
+        _input = input;
+        _input.Initialize(gameEngine);
+        Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
     }
 
     public void Play()
     {
         Console.WriteLine(
-            "Guide:\nYou can control the movement of the Hero by either WSAD or arrows.\nH - Freeing hands\nE - Picking up items\nI - Taking an item into your hands\nX - Dropping item from the inventory\nEscape - Quitting the game\n\nIf you understand press Y to start the game");
+            "Guide:\nYou can control the movement of the Hero by either WSAD or arrows.\nH - Freeing hands\nE - Picking up items\nI - Taking an item into your hands\nX - Dropping item from the inventory\nB - Quitting the game\n\nIf you understand press Y to start the game, you will always have access to the guide at the bottom of your screen");
         var key = Console.ReadKey(true);
         while (key.Key != ConsoleKey.Escape && key.Key != ConsoleKey.Y) key = Console.ReadKey(true);
         if (key.Key == ConsoleKey.Escape) return;
@@ -116,8 +113,7 @@ public class Renderer
             cnt++;
         }
 
-        display.Add(new StringBuilder(
-            "H - Freeing hands|E - Picking up items|I - Taking an item into your hands|X - Dropping item from the inventory|Escape - Quitting the game"));
+        display.Add(DisplayGuide());
         foreach (var s in DisplayMessage.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
             display.Add(new StringBuilder(s));
 
@@ -205,5 +201,20 @@ public class Renderer
         stats[7] = $"Gold: {gameEngine.Player.stats.Gold} | Coins: {gameEngine.Player.stats.Coins}";
 
         return stats;
+    }
+
+    public StringBuilder DisplayGuide()
+    {
+        var guide = new StringBuilder();
+        var i = 0;
+        foreach (var worldObject in gameEngine.WorldFeatures)
+        {
+            if (i != 0) guide.Append("|");
+            guide.Append(_input.Description[worldObject]);
+            i++;
+        }
+
+        
+        return guide;
     }
 }
