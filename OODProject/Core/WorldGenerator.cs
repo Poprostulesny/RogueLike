@@ -585,6 +585,8 @@ public static class WorldGeneratorNew
 
     public static void AddPaths(Field[,] World, int amount)
     {
+        MessageBus.SendInputMessage(InputTypes.Movement);
+        MessageBus.SendInputMessage(InputTypes.Quit);
         var height = World.GetLength(0);
         var width = World.GetLength(1);
         var random = new Random(DateTime.Now.Microsecond);
@@ -605,6 +607,8 @@ public static class WorldGeneratorNew
 
     public static void AddCentralRoom(Field[,] World, int w, int h)
     {
+        MessageBus.SendInputMessage(InputTypes.Movement);
+        MessageBus.SendInputMessage(InputTypes.Quit);
         int midy = World.GetLength(0) / 2;
         int midx = World.GetLength(1) / 2;
         int startx = Math.Max(0,midx - w / 2);
@@ -629,6 +633,14 @@ public static class WorldGeneratorNew
 
     public static void AddWeapons(Field[,] World, List<IInventoryItem> weapons, int amount)
     {
+        MessageBus.SendInputMessage(InputTypes.EquipItem);
+        MessageBus.SendInputMessage(InputTypes.FreeHand);
+        MessageBus.SendInputMessage(InputTypes.PickupItem);
+        MessageBus.SendInputMessage(InputTypes.DropItem);
+        MessageBus.SendInputMessage(InputTypes.Movement);
+        MessageBus.SendInputMessage(InputTypes.Quit);
+
+
         List<(int, int)> EmptyPoints = new List<(int, int)>();
         for (int y = 1; y < World.GetLength(0) - 1; y++)
         {
@@ -652,6 +664,12 @@ public static class WorldGeneratorNew
 
     public static void AddItems(Field[,] World, List<IItem> items, int amount)
     {
+        MessageBus.SendInputMessage(InputTypes.EquipItem);
+        MessageBus.SendInputMessage(InputTypes.FreeHand);
+        MessageBus.SendInputMessage(InputTypes.PickupItem);
+        MessageBus.SendInputMessage(InputTypes.DropItem);
+        MessageBus.SendInputMessage(InputTypes.Movement);
+        MessageBus.SendInputMessage(InputTypes.Quit);
         List<(int, int)> EmptyPoints = new List<(int, int)>();
         for (int y = 1; y < World.GetLength(0) - 1; y++)
         {
@@ -672,6 +690,8 @@ public static class WorldGeneratorNew
     }
     public static void AddChambers(Field[,] World)
     {
+        MessageBus.SendInputMessage(InputTypes.Movement);
+        MessageBus.SendInputMessage(InputTypes.Quit);
         List<Square> chambers = new List<Square>();
         Random rand = new Random(DateTime.Now.Microsecond);
         int amount = rand.Next(4, 11);

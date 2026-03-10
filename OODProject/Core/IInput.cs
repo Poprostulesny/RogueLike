@@ -6,12 +6,23 @@ public interface IInput
 {
     public bool TakeInput();
     public void Initialize(ref GameWorld gameWorld);
+    public Dictionary<InputTypes,string> InputDict { get; }
 }
-
+public enum InputTypes
+{
+    Movement,
+    PickupItem,
+    DropItem,
+    EquipItem,
+    FreeHand,
+    Quit
+}
 public class KeyboardInput : IInput
 {
     private GameWorld? _gameWorld;
     private readonly Dictionary<ConsoleKey, Action> dict = new();
+    private Dictionary<InputTypes, string> _InputDict = new();
+    public Dictionary<InputTypes, string> InputDict { get => _InputDict; }
     private bool quitflag = true;
     private WorldUtils? utils;
 
@@ -19,6 +30,7 @@ public class KeyboardInput : IInput
     {
         _gameWorld = gameWorld;
         utils = new WorldUtils(ref gameWorld);
+
         dict.Add(ConsoleKey.UpArrow, () => utils.MoveHero(Direction.Up));
         dict.Add(ConsoleKey.DownArrow, () => utils.MoveHero(Direction.Down));
         dict.Add(ConsoleKey.LeftArrow, () => utils.MoveHero(Direction.Left));
@@ -32,6 +44,14 @@ public class KeyboardInput : IInput
         dict.Add(ConsoleKey.X, () => ChooseItemToDrop());
         dict.Add(ConsoleKey.H, () => ChooseHandToFree());
         dict.Add(ConsoleKey.B, () => Quit());
+
+        InputDict.Add(InputTypes.Movement, "To move the Hero use WASD or arrows");
+        InputDict.Add(InputTypes.FreeHand, "H - Free Hero's hands");
+        InputDict.Add(InputTypes.PickupItem, "E - Pick up item from the ground");
+        InputDict.Add(InputTypes.EquipItem, "I - Equip item from inventory");
+        InputDict.Add(InputTypes.DropItem, "X - Drop item from inventory");
+        InputDict.Add(InputTypes.Quit, "B - Quit the game");
+
     }
 
     public bool TakeInput()
@@ -51,7 +71,7 @@ public class KeyboardInput : IInput
     {
         MessageBus.Send("If you are sure you want to quit the game press B");
         var inp = Console.ReadKey(true);
-        if (inp.Key == ConsoleKey.B) quitflag = true;
+        if (inp.Key == ConsoleKey.B) quitflag = false;
     }
 
     private void ChooseHandToFree()
