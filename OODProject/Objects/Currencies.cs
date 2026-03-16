@@ -7,7 +7,7 @@ public class Gold(int amount) : Currency
     public bool OnPickup(Hero Player)
     {
         Player.AddGold(amount);
-        MessageBus.Send($"Player picked up {amount} gold");
+       // MessageBus.Send($"Player picked up {amount} gold");
         return true;
     }
 
@@ -26,7 +26,7 @@ public class Coins(int amount) : Currency
     public bool OnPickup(Hero Player)
     {
         Player.AddCoins(amount);
-        MessageBus.Send($"Player picked up {amount} coins");
+        //MessageBus.Send($"Player picked up {amount} coins");
         return true;
     }
 }

@@ -23,8 +23,8 @@ public class Renderer
 {
     private readonly IInput _input;
     private readonly StringBuilder DisplayMessage = new();
-    private readonly GameWorld gameEngine;
-    private StringBuilder InputMessage = new();
+    private readonly IGameWorldView gameEngine;
+    
 
 
     public Renderer(IInput input)
@@ -32,14 +32,13 @@ public class Renderer
         MessageBus.Message += msg =>
         {
             DisplayMessage.AppendLine(msg);
-
             DisplayWorldState();
         };
         MessageBus.ClearMessage += () => { DisplayMessage.Clear(); };
-
-        gameEngine = new GameWorld();
+        var g = new GameWorld();    
+        gameEngine = g;
         _input = input;
-        _input.Initialize(gameEngine);
+        _input.Initialize(g);
         Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
     }
 
@@ -70,16 +69,16 @@ public class Renderer
         var width = Console.WindowWidth;
         var height = Console.WindowHeight;
         var display = new List<StringBuilder>();
-        for (var i = 0; i < 42; i++)
+        for (var i = 0; i < gameEngine.Width; i++)
         {
             display.Add(new StringBuilder());
-            for (var y = 0; y < 22; y++)
+            for (var y = 0; y < gameEngine.Height; y++)
             {
-                display[i].Append(gameEngine.World[i, y].Glyph);
-                if (gameEngine.World[i, y].Glyph != '█' && gameEngine.World[i, y].Glyph != ' ')
+                display[i].Append(gameEngine.GetGlyphAt(y,i));
+                if (gameEngine.GetGlyphAt(y,i) != '█' && gameEngine.GetGlyphAt(y,i) != ' ')
                     display[i].Append(' ');
                 else
-                    display[i].Append(gameEngine.World[i, y].Glyph);
+                    display[i].Append(gameEngine.GetGlyphAt(y,i));
             }
 
             display[i].Append('|');
@@ -104,7 +103,7 @@ public class Renderer
 
         display[cnt].Append(DisplayHands());
         cnt++;
-        var field = DisplayField(gameEngine.Player.PosX, gameEngine.Player.PosY);
+        var field = DisplayField(gameEngine.PlayerPosX, gameEngine.PlayerPosY);
 
         foreach (var s in field)
         {
@@ -134,16 +133,17 @@ public class Renderer
 
     public string[] DisplayInventory()
     {
-        var display = new string[gameEngine.Player.inventory.Capacity + 1];
+        (var inventory, var capacity) = gameEngine.GetInventoryItems();
+        var display = new string[capacity + 1];
         display[0] = "Inventory:";
         var cnt = 1;
-        foreach (var item in gameEngine.Player.inventory.Items)
+        foreach (var item in inventory)
         {
             display[cnt] = new string($"{cnt.ToString()}. {item.Name}");
             cnt++;
         }
 
-        while (cnt < gameEngine.Player.inventory.Capacity + +1)
+        while (cnt < capacity  +1)
         {
             display[cnt] = "";
             cnt++;
@@ -156,15 +156,16 @@ public class Renderer
     {
         var disp = new List<string>();
         disp.Add(new string("Player stands on an Empty Field:"));
-        if (gameEngine.World[y, x].isOccupied)
+        var occupant = gameEngine.GetOccupantAt(x, y);
+        if (occupant != null) 
             disp.Add(new string(
-                $"Enemy: {gameEngine.World[y, x].Occupant.Name}: {gameEngine.World[y, x].Occupant.Description}"));
-
-        if (gameEngine.World[y, x].Items.Count != 0)
+                $"Enemy: {occupant.Name}: {occupant.Description}"));
+        var items = gameEngine.GetItemsAt(x, y);
+        if (items.Count != 0)
         {
             disp.Add(new string("Items:"));
             var cnt = 1;
-            foreach (var item in gameEngine.World[y, x].Items)
+            foreach (var item in items)
             {
                 disp.Add(new string($"- {cnt.ToString()}. {item.Name}: {item.Description}"));
                 cnt++;
@@ -176,29 +177,31 @@ public class Renderer
 
 
     public string DisplayHands()
-    {
-        if (gameEngine.Player.hands.isTwoHandedEquipped) return $"Both Hands: {gameEngine.Player.hands.Left.Name}";
+    {   
+        var hands = gameEngine.GetHands();
+        if ( hands.isTwoHandedEquipped) return $"Both Hands: { hands.Left.Name}";
 
-        if (gameEngine.Player.hands.Left == null && gameEngine.Player.hands.Right == null)
+        if ( hands.Left == null &&  hands.Right == null)
             return "Left: None | Right: None";
 
-        if (gameEngine.Player.hands.Left == null) return $"Left: None | Right: {gameEngine.Player.hands.Right.Name}";
+        if ( hands.Left == null) return $"Left: None | Right: { hands.Right.Name}";
 
-        if (gameEngine.Player.hands.Right == null) return $"Left: {gameEngine.Player.hands.Left.Name} | Right: None";
-        return $"Left: {gameEngine.Player.hands.Left.Name} | Right: {gameEngine.Player.hands.Right.Name}";
+        if ( hands.Right == null) return $"Left: { hands.Left.Name} | Right: None";
+        return $"Left: { hands.Left.Name} | Right: { hands.Right.Name}";
     }
 
     public string[] DisplayStats()
     {
+        var s = gameEngine.GetHeroStats();
         var stats = new string[8];
         stats[0] = "Hero";
-        stats[1] = $"Strength: {gameEngine.Player.stats.Strength}";
-        stats[2] = $"Agility: {gameEngine.Player.stats.Agility}";
-        stats[3] = $"Wisdom: {gameEngine.Player.stats.Wisdom}";
-        stats[4] = $"Persuasion: {gameEngine.Player.stats.Persuasion}";
-        stats[5] = $"Health: {gameEngine.Player.stats.Health}";
-        stats[6] = $"Defense: {gameEngine.Player.stats.Defense}";
-        stats[7] = $"Gold: {gameEngine.Player.stats.Gold} | Coins: {gameEngine.Player.stats.Coins}";
+        stats[1] = $"Strength: {s.Strength}";
+        stats[2] = $"Agility: {s.Agility}";
+        stats[3] = $"Wisdom: {s.Wisdom}";
+        stats[4] = $"Persuasion: {s.Persuasion}";
+        stats[5] = $"Health: {s.Health}";
+        stats[6] = $"Defense: {s.Defense}";
+        stats[7] = $"Gold: {s.Gold} | Coins: {s.Coins}";
 
         return stats;
     }

@@ -5,7 +5,20 @@ public class Hands
     public bool isTwoHandedEquipped;
     public IInventoryItem? Left;
     public IInventoryItem? Right;
+    public Hands(Hands other)
+    {
+        Left = other.Left;
+        Right = other.Right;
+        isTwoHandedEquipped= other.isTwoHandedEquipped;
+        
+    }
 
+    public Hands()
+    {
+        isTwoHandedEquipped = false;
+        Left = null;
+        Right = null;
+    }
     public bool CanEquip(IInventoryItem item, Hand dir)
     {
         if (item == Left || item == Right)
@@ -113,7 +126,7 @@ public class Inventory(int _capacity)
             return true;
         }
 
-
+        MessageBus.Send($"{item.Name} couldn't have been added to Inventory");
         return false;
     }
 

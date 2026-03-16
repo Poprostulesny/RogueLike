@@ -222,8 +222,6 @@ public sealed class MazeWithRooms : IDungeonBuildStep
     /*
         code from https://github.com/munificent/hauberk/blob/db360d9efa714efb6d937c31953ef849c7394a39/lib/src/content/dungeon.dart
         translated into c#
-        i dont rly understand whats going on but it works
-        my additions are forcing room of size 3 at 1,1 and ensuring it is connected
         */
 
     public void Apply(DungeonBuildContext ctx)

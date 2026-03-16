@@ -8,7 +8,7 @@ public enum Hand
 
 public class Hero : IDescribable
 {
-    public Hands hands = new();
+    public Hands hands = new Hands();
 
     public Inventory inventory = new(5);
     public int PosX;
