@@ -1,14 +1,5 @@
 namespace OODProject;
 
-public interface IDungeonBuildStep
-{
-    void Apply(DungeonBuildContext ctx);
-}
-
-public interface IDungeonBaseBuildStep : IDungeonBuildStep
-{
-}
-
 public interface IDungeonStrategy
 {
     void Build(DungeonBuildContext ctx);
@@ -186,10 +177,40 @@ public static class WorldGeneratorUtils
     }
 }
 
-public sealed class DrunkardsWalk : IDungeonBuildStep
+public sealed class DungeonBuilder
 {
-    public void Apply(DungeonBuildContext ctx)
+    private readonly DungeonBuildContext _context;
+
+    private DungeonBuilder(DungeonBuildContext context)
     {
+        _context = context;
+    }
+
+    public static DungeonBuilder CreateFilledDungeon(DungeonBuildContext ctx)
+    {
+        var world = ctx.World;
+        for (var y = 0; y < world.GetLength(0); y++)
+        for (var x = 0; x < world.GetLength(1); x++)
+            world[y, x] = new NonEnterableField();
+
+        return new DungeonBuilder(ctx);
+    }
+
+    public static DungeonBuilder CreateEmptyDungeon(DungeonBuildContext ctx)
+    {
+        var world = ctx.World;
+        for (var y = 0; y < world.GetLength(0); y++)
+        for (var x = 0; x < world.GetLength(1); x++)
+            world[y, x] = new EmptyField();
+
+        WorldGeneratorUtils.CloseBorders(world);
+        ctx.AddFeature(GameObjects.Movement);
+        return new DungeonBuilder(ctx);
+    }
+
+    public DungeonBuilder DrunkardsWalk()
+    {
+        var ctx = _context;
         var World = ctx.World;
         ctx.AddFeature(GameObjects.Movement);
         var curx = 1;
@@ -214,18 +235,18 @@ public sealed class DrunkardsWalk : IDungeonBuildStep
             curx = new_x;
             cury = new_y;
         }
-    }
-}
 
-public sealed class MazeWithRooms : IDungeonBuildStep
-{
+        return this;
+    }
+
     /*
         code from https://github.com/munificent/hauberk/blob/db360d9efa714efb6d937c31953ef849c7394a39/lib/src/content/dungeon.dart
         translated into c#
         */
 
-    public void Apply(DungeonBuildContext ctx)
+    public DungeonBuilder MazeWithRooms()
     {
+        var ctx = _context;
         var World = ctx.World;
         ctx.AddFeature(GameObjects.Movement);
         var height = World.GetLength(0);
@@ -581,16 +602,12 @@ public sealed class MazeWithRooms : IDungeonBuildStep
                 World[y, x] = new EmptyField();
 
         WorldGeneratorUtils.EnsureConnectedness(World);
+        return this;
     }
-}
 
-public sealed class AddCentralRoom(int _w, int _h) : IDungeonBuildStep
-{
-    private readonly int h = _h;
-    private readonly int w = _w;
-
-    public void Apply(DungeonBuildContext ctx)
+    public DungeonBuilder AddCentralRoom(int w, int h)
     {
+        var ctx = _context;
         var World = ctx.World;
         var midy = World.GetLength(0) / 2;
         var midx = World.GetLength(1) / 2;
@@ -602,15 +619,12 @@ public sealed class AddCentralRoom(int _w, int _h) : IDungeonBuildStep
 
         WorldGeneratorUtils.EnsureConnectedness(World);
         ctx.AddFeature(GameObjects.Movement);
+        return this;
     }
-}
 
-public sealed class AddWeapons(List<Func<IInventoryItem>> _weapons) : IDungeonBuildStep
-{
-    private readonly List<Func<IInventoryItem>> Weapons = _weapons;
-
-    public void Apply(DungeonBuildContext ctx)
+    public DungeonBuilder AddWeapons(List<Func<IInventoryItem>> weapons)
     {
+        var ctx = _context;
         var World = ctx.World;
 
 
@@ -621,36 +635,33 @@ public sealed class AddWeapons(List<Func<IInventoryItem>> _weapons) : IDungeonBu
                 EmptyPoints.Add((y, x));
 
 
-        if (EmptyPoints.Count == 0 || Weapons.Count == 0) return;
+        if (EmptyPoints.Count == 0 || weapons.Count == 0) return this;
         var random = new Random(DateTime.Now.Microsecond);
         for (var i = 0; i < ctx.weapon_amount; i++)
         {
             var point = random.Next(0, EmptyPoints.Count);
-            var weapon = random.Next(0, Weapons.Count);
+            var weapon = random.Next(0, weapons.Count);
             var (y, x) = EmptyPoints[point];
-            World[y, x].TryAddItem(Weapons[weapon]());
+            World[y, x].TryAddItem(weapons[weapon]());
         }
 
         ctx.AddFeature(GameObjects.Item);
+        return this;
     }
-}
 
-public sealed class AddItems(List<Func<IItem>> _items) : IDungeonBuildStep
-{
-    private readonly List<Func<IItem>> items = _items;
-
-    public void Apply(DungeonBuildContext ctx)
+    public DungeonBuilder AddItems(List<Func<IItem>> items)
     {
+        var ctx = _context;
         var World = ctx.World;
 
-        if (items.Count == 0) return;
+        if (items.Count == 0) return this;
         var EmptyPoints = new List<(int, int)>();
         for (var y = 1; y < World.GetLength(0) - 1; y++)
         for (var x = 1; x < World.GetLength(1) - 1; x++)
             if (World[y, x].CanBeEntered)
                 EmptyPoints.Add((y, x));
 
-        if (EmptyPoints.Count == 0) return;
+        if (EmptyPoints.Count == 0) return this;
         var random = new Random(DateTime.Now.Microsecond);
         for (var i = 0; i < ctx.item_amount; i++)
         {
@@ -661,40 +672,12 @@ public sealed class AddItems(List<Func<IItem>> _items) : IDungeonBuildStep
         }
 
         ctx.AddFeature(GameObjects.Item);
+        return this;
     }
-}
 
-public sealed class FilledDungeon : IDungeonBaseBuildStep
-{
-    public void Apply(DungeonBuildContext ctx)
+    public DungeonBuilder AddChambers(int amount)
     {
-        var World = ctx.World;
-        for (var y = 0; y < World.GetLength(0); y++)
-        for (var x = 0; x < World.GetLength(1); x++)
-            World[y, x] = new NonEnterableField();
-    }
-}
-
-public sealed class EmptyDungeon : IDungeonBaseBuildStep
-{
-    public void Apply(DungeonBuildContext ctx)
-    {
-        var World = ctx.World;
-        for (var y = 0; y < World.GetLength(0); y++)
-        for (var x = 0; x < World.GetLength(1); x++)
-            World[y, x] = new EmptyField();
-
-        WorldGeneratorUtils.CloseBorders(World);
-        ctx.AddFeature(GameObjects.Movement);
-    }
-}
-
-public sealed class AddChambers(int _amount) : IDungeonBuildStep
-{
-    private readonly int amount = _amount;
-
-    public void Apply(DungeonBuildContext ctx)
-    {
+        var ctx = _context;
         var World = ctx.World;
         var chambers = new List<Square>();
         var rand = new Random(DateTime.Now.Microsecond);
@@ -728,7 +711,7 @@ public sealed class AddChambers(int _amount) : IDungeonBuildStep
         WorldGeneratorUtils.EnsureConnectedness(World);
         ctx.AddFeature(GameObjects.Movement);
 
-        return;
+        return this;
 
         bool intersects(Square square)
         {
@@ -759,14 +742,10 @@ public sealed class AddChambers(int _amount) : IDungeonBuildStep
         public readonly int x2 = _x2;
         public readonly int y2 = _y2;
     }
-}
 
-public sealed class AddPaths(int _amount) : IDungeonBuildStep
-{
-    private readonly int amount = _amount;
-
-    public void Apply(DungeonBuildContext ctx)
+    public DungeonBuilder AddPaths(int amount)
     {
+        var ctx = _context;
         var World = ctx.World;
         var height = World.GetLength(0);
         var width = World.GetLength(1);
@@ -785,6 +764,7 @@ public sealed class AddPaths(int _amount) : IDungeonBuildStep
 
         WorldGeneratorUtils.EnsureConnectedness(World);
         ctx.AddFeature(GameObjects.Movement);
+        return this;
     }
 }
 
@@ -817,17 +797,14 @@ public sealed class DungeonGrounds : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        var strategy = new StepSequenceStrategy(
-            new FilledDungeon(),
-            new AddChambers(5),
-            new AddPaths(10),
-            new AddCentralRoom(7, 10),
-            new AddItems(DungeonStrategyDefaults.CreateItems()),
-            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
-
         ctx.item_amount = 15;
         ctx.weapon_amount = 10;
-        strategy.Build(ctx);
+        DungeonBuilder.CreateFilledDungeon(ctx)
+            .AddChambers(5)
+            .AddPaths(10)
+            .AddCentralRoom(7, 10)
+            .AddItems(DungeonStrategyDefaults.CreateItems())
+            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
     }
 }
 
@@ -835,14 +812,11 @@ public sealed class EmptyDungeonStrategy : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        var strategy = new StepSequenceStrategy(
-            new EmptyDungeon(),
-            new AddItems(DungeonStrategyDefaults.CreateItems()),
-            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
-
         ctx.item_amount = 15;
         ctx.weapon_amount = 10;
-        strategy.Build(ctx);
+        DungeonBuilder.CreateEmptyDungeon(ctx)
+            .AddItems(DungeonStrategyDefaults.CreateItems())
+            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
     }
 }
 
@@ -850,15 +824,12 @@ public sealed class ExtraFunDungeon : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        var strategy = new StepSequenceStrategy(
-            new FilledDungeon(),
-            new MazeWithRooms(),
-            new AddItems(DungeonStrategyDefaults.CreateItems()),
-            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
-
         ctx.item_amount = 15;
         ctx.weapon_amount = 10;
-        strategy.Build(ctx);
+        DungeonBuilder.CreateFilledDungeon(ctx)
+            .MazeWithRooms()
+            .AddItems(DungeonStrategyDefaults.CreateItems())
+            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
     }
 }
 
@@ -866,34 +837,12 @@ public sealed class DrunkenlyDrawnDungeon : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        var strategy = new StepSequenceStrategy(
-            new FilledDungeon(),
-            new DrunkardsWalk(),
-            new AddPaths(10),
-            new AddItems(DungeonStrategyDefaults.CreateItems()),
-            new AddWeapons(DungeonStrategyDefaults.CreateWeapons()));
-
         ctx.item_amount = 15;
         ctx.weapon_amount = 10;
-        strategy.Build(ctx);
-    }
-}
-
-public sealed class StepSequenceStrategy : IDungeonStrategy
-{
-    private readonly IDungeonBaseBuildStep _base;
-    private readonly IReadOnlyList<IDungeonBuildStep> _steps;
-
-    public StepSequenceStrategy(IDungeonBaseBuildStep base_step, params IDungeonBuildStep[] steps)
-    {
-        _steps = steps;
-        _base = base_step;
-    }
-
-    public void Build(DungeonBuildContext context)
-    {
-        _base.Apply(context);
-        foreach (var step in _steps)
-            step.Apply(context);
+        DungeonBuilder.CreateFilledDungeon(ctx)
+            .DrunkardsWalk()
+            .AddPaths(10)
+            .AddItems(DungeonStrategyDefaults.CreateItems())
+            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
     }
 }

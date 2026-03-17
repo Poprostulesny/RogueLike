@@ -115,7 +115,7 @@ public class Renderer
         display.Add(DisplayGuide());
         foreach (var s in DisplayMessage.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
             display.Add(new StringBuilder(s));
-
+        int size = display.Count;
         while (display.Count < height) display.Add(new StringBuilder());
         var buffer = new StringBuilder(height * width);
         for (var i = 0; i < height; i++)
@@ -127,8 +127,9 @@ public class Renderer
         }
 
 
-        Console.SetCursorPosition(0, 0);
+        Console.SetCursorPosition(0,0);
         Console.Write(buffer.ToString());
+        Console.SetCursorPosition(0,size);
     }
 
     public string[] DisplayInventory()
