@@ -87,6 +87,7 @@ public abstract class IInput
 
         public abstract void Action(object? arg);
         public abstract string GuideDescription { get; }
+        public abstract List<GameObjects> AssociatedGameObjects { get; }
     }
 
     public class InputContext
@@ -223,6 +224,9 @@ public class KeyboardInput : IInput
         }
 
         public override string GuideDescription => "Move Hero Around";
+        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Movement]);
+        
+        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
     }
 
     public class QuitAction(InputContext ctx) : InputObject(ctx)
@@ -253,7 +257,9 @@ public class KeyboardInput : IInput
                 MessageBus.Send("Quit canceled");
             }
         }
-
+        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Quitting]);
+        
+        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
         public override string GuideDescription => "Quit the game";
     }
 
@@ -295,7 +301,9 @@ public class KeyboardInput : IInput
             else
                 MessageBus.Send($"{item.Name} freed from hands");
         }
-
+        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
+        
+        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
         public override string GuideDescription => "Free Hero's hands";
     }
 
@@ -324,7 +332,9 @@ public class KeyboardInput : IInput
             else
                 MessageBus.Send($"You have dropped {ret.item.Name}");
         }
-
+        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
+        
+        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
         public override string GuideDescription => "Drop from inventory";
     }
 
@@ -386,7 +396,9 @@ public class KeyboardInput : IInput
 
             MessageBus.Send($"{it.Name} successfully equipped");
         }
-
+        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
+        
+        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
         public override string GuideDescription => "Equip an item from inventory";
     }
 
@@ -425,7 +437,9 @@ public class KeyboardInput : IInput
             else
                 MessageBus.Send($"You couldn't pick up {ret.item.Name}");
         }
-
+        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
+        
+        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
         public override string GuideDescription => "Pickup an item from the ground";
     }
 }
