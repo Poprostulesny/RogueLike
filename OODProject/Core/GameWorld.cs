@@ -1,11 +1,11 @@
-namespace OODProject;
+namespace OODProject.Core;
 
 public enum GameObjects
 {
     Item,
     Enemies,
     Movement,
-    Quitting
+    All
 }
 
 public interface IGameWorldView
@@ -35,19 +35,19 @@ public interface IInputPrimitives
     public IItem? EquipItem(int cnt,Hand side);
     public IInventoryItem GetInventoryItem(int cnt);
     public int CntFieldItems();
-    public bool isTwoHandedEquipped();
+    public bool IsTwoHandedEquipped();
     
 }
 public class GameWorld:IGameWorldView , IInputPrimitives
 {
     public readonly SortedSet<GameObjects> _worldFeatures;
     
-    private Hero Player = new();
-    private Field[,] World = new Field[42, 22];
+    private Hero _player = new();
+    private Field[,] _world = new Field[42, 22];
 
     public GameWorld()
     {
-        var ctx = new DungeonBuildContext(World);
+        var ctx = new DungeonBuildContext(_world);
 
         //use some strategies or create your own from the building blocks
         var strategy = new DungeonGrounds();
@@ -56,8 +56,8 @@ public class GameWorld:IGameWorldView , IInputPrimitives
 
         //dont change things below
         _worldFeatures = ctx.Features;
-        _worldFeatures.Add(GameObjects.Quitting);
-        World[1, 1].TryAddHero(ref Player, 1, 1);
+        _worldFeatures.Add(GameObjects.All);
+        _world[1, 1].TryAddHero(ref _player, 1, 1);
     }
 
     public IReadOnlyCollection<GameObjects> WorldFeatures { get=>_worldFeatures.ToList().AsReadOnly(); }
@@ -83,15 +83,15 @@ public class GameWorld:IGameWorldView , IInputPrimitives
         }
 
 
-        var oldX =  Player.PosX;
-        var oldY =  Player.PosY;
+        var oldX =  _player.PosX;
+        var oldY =  _player.PosY;
         var newX = oldX + xplus;
         var newY = oldY + yplus;
-        if (!(newY < 0 || newY >= World.GetLength(0) || newX < 0 
-            || newX >= World.GetLength(1)) &&
-            World[newY, newX].TryAddHero(ref Player, newX, newY))
+        if (!(newY < 0 || newY >= _world.GetLength(0) || newX < 0 
+            || newX >= _world.GetLength(1)) &&
+            _world[newY, newX].TryAddHero(ref _player, newX, newY))
         {
-             World[oldY, oldX].RemoveHero();
+             _world[oldY, oldX].RemoveHero();
              return(newX, newY);
             
         }
@@ -102,16 +102,16 @@ public class GameWorld:IGameWorldView , IInputPrimitives
     public (IItem item, bool result) DropItem(int cnt)
     {
         cnt--;
-        var which = Player.inventory.Items[cnt];
-        if ( Player.hands.Left == which)
-             Player.hands.TryRemove(Hand.Left,  Player);
-        else if ( Player.hands.Right == which)
-             Player.hands.TryRemove(Hand.Right,  Player);
+        var which = _player.Inventory.Items[cnt];
+        if ( _player.Hands.Left == which)
+             _player.Hands.TryRemove(Hand.Left,  _player);
+        else if ( _player.Hands.Right == which)
+             _player.Hands.TryRemove(Hand.Right,  _player);
 
-        var ret =  World[ Player.PosY,  Player.PosX].TryAddItem(which);
+        var ret =  _world[ _player.PosY,  _player.PosX].TryAddItem(which);
         if (ret)
         {
-            Player.inventory.Remove(which);
+            _player.Inventory.Remove(which);
             
             return (which, true);
         }
@@ -124,37 +124,37 @@ public class GameWorld:IGameWorldView , IInputPrimitives
 
     public int CntInventoryItems()
     {
-        return  Player.inventory.Items.Count;
+        return  _player.Inventory.Items.Count;
         
     }
 
-    public bool isTwoHandedEquipped()
+    public bool IsTwoHandedEquipped()
     {
-        return  Player.hands.isTwoHandedEquipped;
+        return  _player.Hands.IsTwoHandedEquipped;
     }
     
 
     public int CntFieldItems()
     {
-        return  World[ Player.PosY,  Player.PosX].Items.Count;
+        return  _world[ _player.PosY,  _player.PosX].Items.Count;
     }
     public (IItem? item, bool result) PickupItem(int cnt)
     {
         cnt--;
-        if (cnt >= World[PlayerPosY, PlayerPosX].Items.Count)
+        if (cnt >= _world[PlayerPosY, PlayerPosX].Items.Count)
         {
             return (null, false);
         }
-        var item =  World[ Player.PosY,  Player.PosX].Items[cnt];
-        if ( World[ Player.PosY,  Player.PosX]
-                .TryTakeItem( World[ Player.PosY,  Player.PosX].Items[cnt]) &&
-            item.OnPickup( Player))
+        var item =  _world[ _player.PosY,  _player.PosX].Items[cnt];
+        if ( _world[ _player.PosY,  _player.PosX]
+                .TryTakeItem( _world[ _player.PosY,  _player.PosX].Items[cnt]) &&
+            item.OnPickup( _player))
         {
            
             return (item, true);
         }
         
-        World[ Player.PosY,  Player.PosX]
+        _world[ _player.PosY,  _player.PosX]
                 .TryAddItem(item);
           
         return (item, false);
@@ -165,20 +165,20 @@ public class GameWorld:IGameWorldView , IInputPrimitives
     public IItem? FreeHerosHand(Hand hand)
     {
         
-        IInventoryItem? item = Player.hands.TryRemove(hand, Player);
+        IInventoryItem? item = _player.Hands.TryRemove(hand, _player);
 
         return item;
     }
     public IItem? EquipItem(int cnt, Hand side)
     {   
         cnt--;
-        if (Player.inventory.Items[cnt].isTwoHanded)
+        if (_player.Inventory.Items[cnt].IsTwoHanded)
         {
             side = Hand.Left;
         }
-        if ( Player.hands.TryEquip( Player.inventory.Items[ cnt], side,  Player))
+        if ( _player.Hands.TryEquip( _player.Inventory.Items[ cnt], side,  _player))
         {
-            return Player.inventory.Items[cnt];
+            return _player.Inventory.Items[cnt];
         }
         
         return null;
@@ -187,40 +187,40 @@ public class GameWorld:IGameWorldView , IInputPrimitives
     public IInventoryItem GetInventoryItem(int cnt)
     {
         cnt--;
-        return Player.inventory.Items[cnt];
+        return _player.Inventory.Items[cnt];
     }
 
-    public int Width { get=>World.GetLength(0); }
-    public int Height { get=>World.GetLength(1); }
+    public int Width { get=>_world.GetLength(0); }
+    public int Height { get=>_world.GetLength(1); }
     public char GetGlyphAt(int x, int y)
     {
-        return World[y, x].Glyph;
+        return _world[y, x].Glyph;
     }
 
-    public int PlayerPosX { get => Player.PosX;  }
-    public int PlayerPosY { get => Player.PosY;  }
+    public int PlayerPosX { get => _player.PosX;  }
+    public int PlayerPosY { get => _player.PosY;  }
     public IReadOnlyCollection<IItem> GetItemsAt(int x, int y)
     {
-        return  World[y, x].Items.AsReadOnly();
+        return  _world[y, x].Items.AsReadOnly();
     }
 
     public IOccupant? GetOccupantAt(int x, int y)
     {
-        return World[y, x].Occupant;
+        return _world[y, x].Occupant;
     }
 
     public Hands GetHands()
     {
-        return new Hands(Player.hands);
+        return new Hands(_player.Hands);
     }
 
     public (IReadOnlyCollection<IInventoryItem>, int) GetInventoryItems()
     {
-        return (Player.inventory.Items.AsReadOnly(), Player.inventory.Capacity);
+        return (_player.Inventory.Items.AsReadOnly(), _player.Inventory.Capacity);
     }
 
     public HeroStats GetHeroStats()
     {
-        return Player.stats;
+        return _player.Stats;
     }
 }

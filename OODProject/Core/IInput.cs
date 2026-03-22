@@ -1,6 +1,7 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace OODProject;
+namespace OODProject.Core;
 
 public enum InputDevice
 {
@@ -16,17 +17,28 @@ public enum HandChoice
 public enum ConfirmChoice
 {
     Confirm,
+    Discard
 }
 
-public readonly record struct InputCode(InputDevice Device, int Code)
+public enum InputReturn
 {
-    public static InputCode FromConsoleKey(ConsoleKey key) => new(InputDevice.Keyboard, (int)key);
+    Continue,
+    Stop,
+    Remap
+}
+
+public readonly record struct InputCode(InputDevice Device, int Code, string Description)
+{
+    public static InputCode FromConsoleKey(ConsoleKey key) => new(InputDevice.Keyboard, (int)key, key.ToString());
 }
 
 public class BiMap<TLeft, TRight> where TLeft : notnull where TRight : notnull
 {
     private readonly Dictionary<TLeft, TRight> _forward = new();
     private readonly Dictionary<TRight, List<TLeft>> _reverse = new();
+    public Dictionary<TLeft, TRight> GetForward => _forward;
+
+    public Dictionary<TRight, List<TLeft>> GetReverse => _reverse;
 
     public void Add(TLeft left, TRight right)
     {
@@ -45,7 +57,7 @@ public class BiMap<TLeft, TRight> where TLeft : notnull where TRight : notnull
             _reverse[right].Remove(left);
     }
 
-    public bool TryGetByLeft(TLeft key, out TRight value) => _forward.TryGetValue(key, out value);
+    public bool TryGetByLeft(TLeft key, out TRight value) => _forward.TryGetValue(key, out value!);
 
     public bool TryGetByRight(TRight key, out IReadOnlyList<TLeft> values)
     {
@@ -62,30 +74,32 @@ public class BiMap<TLeft, TRight> where TLeft : notnull where TRight : notnull
 
 public abstract class IInput
 {
-    internal IInputPrimitives? _gameWorld;
-    internal Dictionary<GameObjects, string> description = new();
-    public Dictionary<GameObjects, string> Description => description;
+    protected IInputPrimitives? GameWorld;
+    protected InputContext Ctx = null!;
 
     public BiMap<InputCode, HandChoice> Hands = new();
     public BiMap<InputCode, ConfirmChoice> ConfirmChoices = new();
     public BiMap<InputCode, int> Numbers = new();
 
-    public record struct BoundAction(InputObject Handler, object? Arg);
-    internal Dictionary<InputCode, BoundAction> PrimaryActionDictionary = new();
 
+    internal readonly Dictionary<InputCode, InputObject> PrimaryActionDictionary = new();
+    public abstract bool RemapKeys();
     public abstract void Initialize(IInputPrimitives gameWorld);
-    public abstract bool TakeInput();
+    public abstract InputReturn TakeInput();
 
     public abstract class InputObject
     {
-        protected readonly InputContext ctx;
+        protected readonly InputContext Ctx;
 
         protected InputObject(InputContext ctx)
         {
-            this.ctx = ctx;
+            this.Ctx = ctx;
+
         }
 
-        public abstract void Action(object? arg);
+
+
+        public abstract void Action();
         public abstract string GuideDescription { get; }
         public abstract List<GameObjects> AssociatedGameObjects { get; }
     }
@@ -110,16 +124,13 @@ public abstract class IInput
 
 public class KeyboardInput : IInput
 {
-    bool quitflag=true;
-    private InputContext? ctx;
-    private readonly BoolRef quitRef = new();
 
-    private class BoolRef
-    {
-        public bool Value=true;
-    }
 
-    private void InsertDefaults()
+    private readonly StrongBox<InputReturn> _quitRef = new(InputReturn.Continue);
+
+
+
+    private void InsertDefaultsSecondary()
     {
         Hands = new();
         ConfirmChoices = new();
@@ -141,105 +152,271 @@ public class KeyboardInput : IInput
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.D7), 7);
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.D8), 8);
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.D9), 9);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad0), 0);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad1), 1);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad2), 2);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad3), 3);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad4), 4);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad5), 5);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad6), 6);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad7), 7);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad8), 8);
+        Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad9), 9);
     }
 
-    public override void Initialize(IInputPrimitives gameWorld)
-    
+    private void InsertDefaultsPrimary()
     {
-        _gameWorld = gameWorld;
-
-        InsertDefaults();
         PrimaryActionDictionary.Clear();
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.UpArrow), new MoveAction(Ctx, Direction.Up));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.DownArrow), new MoveAction(Ctx, Direction.Down));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.LeftArrow), new MoveAction(Ctx, Direction.Left));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.RightArrow), new MoveAction(Ctx, Direction.Right));
 
-        ctx = new InputContext(gameWorld, Hands, ConfirmChoices, Numbers);
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.W), new MoveAction(Ctx, Direction.Up));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.S), new MoveAction(Ctx, Direction.Down));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.A), new MoveAction(Ctx, Direction.Left));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.D), new MoveAction(Ctx, Direction.Right));
 
-        var move = new MoveAction(ctx);
-        var quit = new QuitAction(ctx);
-        var freeHand = new FreeHandAction(ctx);
-        var drop = new ChooseInventoryItemAction(ctx);
-        var equip = new ChooseItemToEquipAction(ctx);
-        var pickup = new TryPickupItemAction(ctx);
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.I), new ChooseItemToEquipAction(Ctx));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.E), new TryPickupItemAction(Ctx));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.X), new DropItemAction(Ctx));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.H), new FreeHandAction(Ctx));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.B), new QuitAction(Ctx, _quitRef));
 
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.UpArrow), new BoundAction(move, Direction.Up));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.DownArrow), new BoundAction(move, Direction.Down));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.LeftArrow), new BoundAction(move, Direction.Left));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.RightArrow), new BoundAction(move, Direction.Right));
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.R), new RemapKeysAction(Ctx, _quitRef));
+    }
+    public override void Initialize(IInputPrimitives gameWorld)
 
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.W), new BoundAction(move, Direction.Up));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.S), new BoundAction(move, Direction.Down));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.A), new BoundAction(move, Direction.Left));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.D), new BoundAction(move, Direction.Right));
+    {
+        GameWorld = gameWorld;
 
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.E), new BoundAction(pickup, null));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.I), new BoundAction(equip, null));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.X), new BoundAction(drop, null));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.H), new BoundAction(freeHand, null));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.B), new BoundAction(quit, quitRef));
-        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.Enter), new BoundAction(quit, quitRef));
+        InsertDefaultsSecondary();
+        Ctx = new InputContext(gameWorld, Hands, ConfirmChoices, Numbers);
+        InsertDefaultsPrimary();
 
-        description.Clear();
-       
-        description.Add(GameObjects.Movement, "WASD or arrows - Movement");
-        description.Add(GameObjects.Item,
-            "I - choosing item to equip into the hands|H - Freeing hands|E - Picking up item|X - Dropping an item");
-        description.Add(GameObjects.Quitting, "B/Enter - Quitting");
+
+
     }
 
-    public override bool TakeInput()
+    public override InputReturn TakeInput()
     {
         var key = Console.ReadKey(true);
         var code = InputCode.FromConsoleKey(key.Key);
-
+        
+            _quitRef.Value = InputReturn.Continue;
+        
         if (PrimaryActionDictionary.TryGetValue(code, out var bound))
         {
-            
 
-            bound.Handler.Action(bound.Arg);
 
-            quitflag = quitRef.Value;
+            bound.Action();
+
+
         }
         else
         {
             MessageBus.Send("Invalid input");
         }
 
-        return quitflag;
+        return _quitRef.Value;
     }
 
-    public class MoveAction(InputContext ctx) : InputObject(ctx)
+    public override bool RemapKeys()
     {
-        public override void Action(object? arg)
+        MessageBus.Send("To change a key binding press P for primary, H for Hands, N for Numbers, B to exit");
+        var input = Console.ReadKey(true).Key;
+        if (input == ConsoleKey.B)
         {
-            if (arg ==null)
-            {
-                MessageBus.Send("Invalid argument");
-                return;
-            }
-            var dir = (Direction)arg;
-            var ret = ctx.Game.MoveHero(dir);
+            return false;
+        }
+        var groupsInput = PrimaryActionDictionary
+ .GroupBy(entry => string.Join("|",
+     entry.Value.AssociatedGameObjects
+         .Select(x => x.ToString())
+         .OrderBy(x => x)))
+ .OrderBy(group => group.Key)
+ .Select(group => group.OrderBy(x => x.Key.Description)).ToArray();
+        var numOrdered = Numbers.GetForward.OrderBy(val => val.Value).ToList();
+        var handsOrdered = Hands.GetForward.OrderBy(val => val.Value).ToList();
+      
+        int id ;
+        bool alter;
+        ConsoleKey inp;
+        switch (input)
+        {
+          
+            case ConsoleKey.P:
+                MessageBus.Send($"Choose the group id [1-{groupsInput.Length}");
+                int gid = KeyboardUtils.ReadNumber(Ctx) - 1;
+                if (gid < 0 || gid > groupsInput.Count())
+                {
+                    return false;
+                }
+
+                MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
+                inp = Console.ReadKey(true).Key;
+
+                switch (inp)
+                {
+                    case ConsoleKey.A:
+                        alter = false;
+                        break;
+                    case ConsoleKey.R:
+                        alter = true;
+                        break;
+                    default:
+                        return false;
+
+                }
+                var g = groupsInput[gid].ToList();
+                MessageBus.Send($"Choose the bind which you want to rep id [1-{g.Count}");
+                id = KeyboardUtils.ReadNumber(Ctx) - 1;
+                if (id < 0 || id >= g.Count)
+                {
+                    return false;
+                }
+                MessageBus.Send("Choose the key you want to replace/add to the given action");
+                var k = Console.ReadKey(true).Key;
+                if (PrimaryActionDictionary.ContainsKey(InputCode.FromConsoleKey(k)))
+                {
+                    MessageBus.Send("You can't have two actions binded to the same key");
+                    return false;
+                }
+                var o = g[id].Value;
+                if (alter)
+                {
+                    PrimaryActionDictionary.Remove(g[id].Key);
+                }
+
+                PrimaryActionDictionary.Add(InputCode.FromConsoleKey(k), o);
+                MessageBus.Send("Added succesfully");
+
+                break;
+            case ConsoleKey.H:
+                MessageBus.Send($"Choose the bind which you want to rep id [1-{handsOrdered.Count}");
+                id = KeyboardUtils.ReadNumber(Ctx) - 1;
+                if (id < 0 || id >= handsOrdered.Count)
+                {
+                    return false;
+                }
+                MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
+                inp = Console.ReadKey(true).Key;
+
+                switch (inp)
+                {
+                    case ConsoleKey.A:
+                        alter = false;
+                        break;
+                    case ConsoleKey.R:
+                        alter = true;
+                        break;
+                    default:
+                        return false;
+
+                }
+                var obj = handsOrdered[id];
+                MessageBus.Send("Choose the key you want to replace/add to the given action");
+                inp = Console.ReadKey(true).Key;
+                if (Hands.TryGetByLeft(InputCode.FromConsoleKey(inp), out var jk))
+                {
+                    MessageBus.Send("You can't have two actions binded to the same key");
+                    return false;
+                }
+                if (alter)
+                {
+                    Hands.Remove(obj.Key);
+                }
+
+
+                Hands.Add(InputCode.FromConsoleKey(inp), obj.Value);
+                MessageBus.Send("Added succesfully");
+                break;
+            case ConsoleKey.N:
+                MessageBus.Send($"Choose the bind which you want to rep id [1-{numOrdered.Count}");
+                id = KeyboardUtils.ReadNumber(Ctx) - 1;
+                if (id < 0 || id >= numOrdered.Count)
+                {
+                    return false;
+                }
+                MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
+                inp = Console.ReadKey(true).Key;
+
+                switch (inp)
+                {
+                    case ConsoleKey.A:
+                        alter = false;
+                        break;
+                    case ConsoleKey.R:
+                        alter = true;
+                        break;
+                    default:
+                        return false;
+
+                }
+                var oj = numOrdered[id];
+                MessageBus.Send("Choose the key you want to replace/add to the given action");
+                inp = Console.ReadKey(true).Key;
+                if (Numbers.TryGetByLeft(InputCode.FromConsoleKey(inp), out var kk))
+                {
+                    MessageBus.Send("You can't have two actions binded to the same key");
+                    return false;
+                }
+                if (alter)
+                {
+                    Numbers.Remove(oj.Key);
+                }
+
+
+                Numbers.Add(InputCode.FromConsoleKey(inp), oj.Value);
+                MessageBus.Send("Added succesfully");
+
+                break;
+
+        }
+
+        return false;
+
+    }
+    public class RemapKeysAction(InputContext ctx, StrongBox<InputReturn> arg) : InputObject(ctx)
+    {
+        private StrongBox<InputReturn> _arg = arg;
+        public override void Action()
+        {
+            _arg.Value = InputReturn.Remap;
+        }
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.All]);
+        public override string GuideDescription { get => "Remap keys"; }
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
+    }
+    public class MoveAction(InputContext ctx, Direction arg) : InputObject(ctx)
+    {
+        private Direction _arg = arg;
+        public override void Action()
+        {
+           
+            var dir = _arg;
+            var ret = Ctx.Game.MoveHero(dir);
             if (ret != (-1, -1))
                 MessageBus.Send($"Hero moved to {ret.x} {ret.y}");
             else
                 MessageBus.Send("Couldn't move the Hero");
         }
 
-        public override string GuideDescription => "Move Hero Around";
-        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Movement]);
-        
-        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
+        public override string GuideDescription => $"{_arg.ToString()}";
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.Movement]);
+
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
     }
 
-    public class QuitAction(InputContext ctx) : InputObject(ctx)
+    public class QuitAction(InputContext ctx, StrongBox<InputReturn> arg) : InputObject(ctx)
     {
-        public override void Action(object? arg)
-        {   if (arg ==null)
+        private StrongBox<InputReturn> _arg = arg;
+        public override void Action()
+        {
+            
+            if (!Ctx.ConfirmChoices.TryGetByRight(ConfirmChoice.Confirm, out var confirmCodes) || confirmCodes.Count == 0)
             {
-                MessageBus.Send("Invalid argument");
-                return;
-            }
-            if (!ctx.ConfirmChoices.TryGetByRight(ConfirmChoice.Confirm, out var confirmCodes) || confirmCodes.Count == 0)
-            {
-                ((BoolRef)arg).Value = false;
+                _arg.Value = InputReturn.Stop;
                 return;
             }
 
@@ -247,28 +424,28 @@ public class KeyboardInput : IInput
             MessageBus.Send($"If you are sure you want to quit the game press {((ConsoleKey)confirmCode.Code)}");
             var inp = Console.ReadKey(true);
 
-            if (ctx.ConfirmChoices.TryGetByLeft(InputCode.FromConsoleKey(inp.Key), out var choice) &&
+            if (Ctx.ConfirmChoices.TryGetByLeft(InputCode.FromConsoleKey(inp.Key), out var choice) &&
                 choice == ConfirmChoice.Confirm)
             {
-                 ((BoolRef)arg).Value = false;
+                _arg.Value = InputReturn.Stop;
             }
             else
             {
                 MessageBus.Send("Quit canceled");
             }
         }
-        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Quitting]);
-        
-        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.All]);
+
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
         public override string GuideDescription => "Quit the game";
     }
 
     public class FreeHandAction(InputContext ctx) : InputObject(ctx)
     {
-        public override void Action(object? arg)
+        public override void Action()
         {
-            if (!ctx.Hands.TryGetByRight(HandChoice.Left, out var l) ||
-                !ctx.Hands.TryGetByRight(HandChoice.Right, out var r))
+            if (!Ctx.Hands.TryGetByRight(HandChoice.Left, out var l) ||
+                !Ctx.Hands.TryGetByRight(HandChoice.Right, out var r))
             {
                 MessageBus.Send("Hand bindings are not configured");
                 return;
@@ -279,7 +456,7 @@ public class KeyboardInput : IInput
             var key = Console.ReadKey(true);
 
             Hand? hand = null;
-            if (ctx.Hands.TryGetByLeft(InputCode.FromConsoleKey(key.Key), out var choice) &&
+            if (Ctx.Hands.TryGetByLeft(InputCode.FromConsoleKey(key.Key), out var choice) &&
                 choice == HandChoice.Right)
             {
                 hand = Hand.Right;
@@ -295,23 +472,23 @@ public class KeyboardInput : IInput
                 return;
             }
 
-            var item = ctx.Game.FreeHerosHand(hand.Value);
+            var item = Ctx.Game.FreeHerosHand(hand.Value);
             if (item == null)
                 MessageBus.Send("You don't have anything in this hand");
             else
                 MessageBus.Send($"{item.Name} freed from hands");
         }
-        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
-        
-        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.Item]);
+
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
         public override string GuideDescription => "Free Hero's hands";
     }
 
-    public class ChooseInventoryItemAction(InputContext ctx) : InputObject(ctx)
+    public class DropItemAction(InputContext ctx) : InputObject(ctx)
     {
-        public override void Action(object? arg)
+        public override void Action()
         {
-            var cnt = ctx.Game.CntInventoryItems();
+            var cnt = Ctx.Game.CntInventoryItems();
             if (cnt == 0)
             {
                 MessageBus.Send("You don't have anything to drop");
@@ -319,30 +496,30 @@ public class KeyboardInput : IInput
             }
 
             MessageBus.Send("Choose item number to drop");
-            var num = KeyboardUtils.ReadNumber(ctx);
+            var num = KeyboardUtils.ReadNumber(Ctx);
             if (num < 1 || num > cnt)
             {
                 MessageBus.Send("Invalid choice");
                 return;
             }
 
-            var ret = ctx.Game.DropItem(num);
+            var ret = Ctx.Game.DropItem(num);
             if (!ret.result)
-                MessageBus.Send($"You couldn't drop {ret.item.Name}");
+                MessageBus.Send($"You couldn't drop {ret.item?.Name}");
             else
-                MessageBus.Send($"You have dropped {ret.item.Name}");
+                MessageBus.Send($"You have dropped {ret.item?.Name}");
         }
-        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
-        
-        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.Item]);
+
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
         public override string GuideDescription => "Drop from inventory";
     }
 
     public class ChooseItemToEquipAction(InputContext ctx) : InputObject(ctx)
     {
-        public override void Action(object? arg)
+        public override void Action()
         {
-            var cnt = ctx.Game.CntInventoryItems();
+            var cnt = Ctx.Game.CntInventoryItems();
             if (cnt == 0)
             {
                 MessageBus.Send("You don't have anything to equip");
@@ -350,7 +527,7 @@ public class KeyboardInput : IInput
             }
 
             MessageBus.Send("Choose item number to equip");
-            var num = KeyboardUtils.ReadNumber(ctx);
+            var num = KeyboardUtils.ReadNumber(Ctx);
             if (num < 1 || num > cnt)
             {
                 MessageBus.Send("Invalid choice");
@@ -358,10 +535,10 @@ public class KeyboardInput : IInput
             }
 
             Hand hand = Hand.Left;
-            if (!ctx.Game.GetInventoryItem(num).isTwoHanded)
+            if (!Ctx.Game.GetInventoryItem(num).IsTwoHanded)
             {
-                if (!ctx.Hands.TryGetByRight(HandChoice.Left, out var l) ||
-                    !ctx.Hands.TryGetByRight(HandChoice.Right, out var r))
+                if (!Ctx.Hands.TryGetByRight(HandChoice.Left, out var l) ||
+                    !Ctx.Hands.TryGetByRight(HandChoice.Right, out var r))
                 {
                     MessageBus.Send("Hand bindings are not configured");
                     return;
@@ -371,7 +548,7 @@ public class KeyboardInput : IInput
                     $"Choose hand to equip by pressing {((ConsoleKey)l[^1].Code)}[left] or {((ConsoleKey)r[^1].Code)}[right]");
 
                 var key = Console.ReadKey(true);
-                if (ctx.Hands.TryGetByLeft(InputCode.FromConsoleKey(key.Key), out var choice) &&
+                if (Ctx.Hands.TryGetByLeft(InputCode.FromConsoleKey(key.Key), out var choice) &&
                     choice == HandChoice.Right)
                 {
                     hand = Hand.Right;
@@ -387,7 +564,7 @@ public class KeyboardInput : IInput
                 }
             }
 
-            var it = ctx.Game.EquipItem(num, hand);
+            var it = Ctx.Game.EquipItem(num, hand);
             if (it == null)
             {
                 MessageBus.Send("Empty your hands before equipping");
@@ -396,17 +573,17 @@ public class KeyboardInput : IInput
 
             MessageBus.Send($"{it.Name} successfully equipped");
         }
-        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
-        
-        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.Item]);
+
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
         public override string GuideDescription => "Equip an item from inventory";
     }
 
     public class TryPickupItemAction(InputContext ctx) : InputObject(ctx)
     {
-        public override void Action(object? arg)
+        public override void Action()
         {
-            var cntField = ctx.Game.CntFieldItems();
+            var cntField = Ctx.Game.CntFieldItems();
             if (cntField <= 0)
             {
                 MessageBus.Send("You don't have anything to pickup");
@@ -421,7 +598,7 @@ public class KeyboardInput : IInput
             else
             {
                 MessageBus.Send("Choose item number to pick up");
-                cnt = KeyboardUtils.ReadNumber(ctx);
+                cnt = KeyboardUtils.ReadNumber(Ctx);
                 if (cnt < 1 || cnt > cntField)
                 {
                     MessageBus.Send("Invalid choice");
@@ -429,7 +606,7 @@ public class KeyboardInput : IInput
                 }
             }
 
-            var ret = ctx.Game.PickupItem(cnt);
+            var ret = Ctx.Game.PickupItem(cnt);
             if (ret.item == null)
                 MessageBus.Send("Invalid input");
             else if (ret.result)
@@ -437,11 +614,13 @@ public class KeyboardInput : IInput
             else
                 MessageBus.Send($"You couldn't pick up {ret.item.Name}");
         }
-        private readonly List<GameObjects> ObjectsList = new List<GameObjects>([GameObjects.Item]);
-        
-        public override List<GameObjects> AssociatedGameObjects { get=>ObjectsList; }
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.Item]);
+
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
         public override string GuideDescription => "Pickup an item from the ground";
     }
+
+
 }
 
 public static class KeyboardUtils
@@ -454,9 +633,10 @@ public static class KeyboardUtils
         while (true)
         {
             var k = Console.ReadKey(false);
-            if (k.Key == ConsoleKey.Enter)
+            if (ctx.ConfirmChoices.TryGetByLeft(InputCode.FromConsoleKey(k.Key), out var conf) && conf == ConfirmChoice.Confirm)
             {
                 if (int.TryParse(sb.ToString(), out i)) break;
+
                 sb.Clear();
             }
 

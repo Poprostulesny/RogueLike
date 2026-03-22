@@ -1,4 +1,6 @@
-namespace OODProject;
+using OODProject.Objects;
+
+namespace OODProject.Core;
 
 public interface IDungeonStrategy
 {
@@ -9,12 +11,12 @@ public sealed class DungeonBuildContext(
     Field[,] world,
     List<Func<IItem>>? items = null,
     List<Func<IInventoryItem>>? weapons = null,
-    int _item_amount = 0,
-    int _weapon_amount = 0)
+    int itemAmount = 0,
+    int weaponAmount = 0)
 {
-    public int item_amount = _item_amount;
+    public int ItemAmount = itemAmount;
     public List<Func<IItem>>? Items = items;
-    public int weapon_amount = _weapon_amount;
+    public int WeaponAmount = weaponAmount;
     public List<Func<IInventoryItem>>? Weapons = weapons;
     public Field[,] World = world;
 
@@ -34,7 +36,7 @@ public static class WorldGeneratorUtils
         return (Direction)rnd;
     }
 
-    public static void NewXY(Direction dir, ref int x, ref int y)
+    public static void NewXy(Direction dir, ref int x, ref int y)
     {
         switch (dir)
         {
@@ -53,22 +55,22 @@ public static class WorldGeneratorUtils
         }
     }
 
-    public static void EnsureConnectedness(Field[,] World)
+    public static void EnsureConnectedness(Field[,] world)
     {
-        var clr_list = new List<List<(int, int)>>();
-        World[1, 1] = new EmptyField();
+        var clrList = new List<List<(int, int)>>();
+        world[1, 1] = new EmptyField();
         int[,] visited;
         while (true)
         {
-            visited = new int[World.GetLength(0), World.GetLength(1)];
-            var EnterableFields = new List<(int, int)>();
-            var empty_cnt = 0;
-            for (var y = 0; y < World.GetLength(0); y++)
-            for (var x = 0; x < World.GetLength(1); x++)
-                if (World[y, x].CanBeEntered)
+            visited = new int[world.GetLength(0), world.GetLength(1)];
+            var enterableFields = new List<(int, int)>();
+            
+            for (var y = 0; y < world.GetLength(0); y++)
+            for (var x = 0; x < world.GetLength(1); x++)
+                if (world[y, x].CanBeEntered)
                 {
-                    empty_cnt++;
-                    EnterableFields.Add((y, x));
+                   
+                    enterableFields.Add((y, x));
                 }
                 else
                 {
@@ -76,28 +78,28 @@ public static class WorldGeneratorUtils
                 }
 
 
-            clr_list.Clear();
-            var clr_cnt = 0;
-            foreach (var (y, x) in EnterableFields)
+            clrList.Clear();
+            var clrCnt = 0;
+            foreach (var (y, x) in enterableFields)
                 if (visited[y, x] == 0)
                 {
-                    clr_cnt++;
-                    clr_list.Add(new List<(int, int)>());
-                    dfs(clr_cnt, y, x, clr_list[clr_cnt - 1]);
+                    clrCnt++;
+                    clrList.Add(new List<(int, int)>());
+                    Dfs(clrCnt, y, x, clrList[clrCnt - 1]);
                 }
 
-            if (clr_cnt == 1) return;
+            if (clrCnt == 1) return;
 
-            find_closest_and_connect(1, 2);
+            FindClosestAndConnect(1, 2);
         }
 
 
-        void find_closest_and_connect(int clra, int clrb)
+        void FindClosestAndConnect(int clra, int clrb)
         {
             var mindist = int.MaxValue;
             (int ya, int xa, int yb, int xb) minpair = (0, 0, 0, 0);
-            foreach (var (ya, xa) in clr_list[clra - 1])
-            foreach (var (yb, xb) in clr_list[clrb - 1])
+            foreach (var (ya, xa) in clrList[clra - 1])
+            foreach (var (yb, xb) in clrList[clrb - 1])
             {
                 var dist = Math.Abs(yb - ya) + Math.Abs(xb - xa);
                 if (dist < mindist)
@@ -107,72 +109,72 @@ public static class WorldGeneratorUtils
                 }
             }
 
-            AddPath(minpair.xa, minpair.ya, minpair.xb, minpair.yb, Random.Shared.Next(1, 3), World);
+            AddPath(minpair.xa, minpair.ya, minpair.xb, minpair.yb, Random.Shared.Next(1, 3), world);
         }
 
-        void dfs(int clr, int y, int x, List<(int, int)> clr_list)
+        void Dfs(int clr, int y, int x, List<(int, int)> clrList)
         {
             visited[y, x] = clr;
-            clr_list.Add((y, x));
+            clrList.Add((y, x));
             for (var i = 0; i < 4; i++)
             {
                 int nx = x, ny = y;
-                NewXY((Direction)i, ref nx, ref ny);
-                if (visited[ny, nx] == 0) dfs(clr, ny, nx, clr_list);
+                NewXy((Direction)i, ref nx, ref ny);
+                if (visited[ny, nx] == 0) Dfs(clr, ny, nx, clrList);
             }
         }
     }
 
-    public static void AddPath(int startX, int startY, int endX, int endY, int shape, Field[,] World)
+    public static void AddPath(int startX, int startY, int endX, int endY, int shape, Field[,] world)
     {
         var x = startX;
         var y = startY;
-        var y_increment = endY > startY ? 1 : -1;
-        var x_increment = endX > startX ? 1 : -1;
+        var yIncrement = endY > startY ? 1 : -1;
+        var xIncrement = endX > startX ? 1 : -1;
         if (shape == 1)
         {
             while (x != endX)
             {
-                World[y, x] = new EmptyField();
-                x += x_increment;
+                world[y, x] = new EmptyField();
+                x += xIncrement;
             }
 
             while (y != endY)
             {
-                World[y, x] = new EmptyField();
-                y += y_increment;
+                world[y, x] = new EmptyField();
+                y += yIncrement;
             }
         }
         else
         {
             while (y != endY)
             {
-                World[y, x] = new EmptyField();
-                y += y_increment;
+                world[y, x] = new EmptyField();
+                y += yIncrement;
             }
 
             while (x != endX)
             {
-                World[y, x] = new EmptyField();
-                x += x_increment;
+                world[y, x] = new EmptyField();
+                x += xIncrement;
             }
         }
     }
 
-    public static void CloseBorders(Field[,] World)
+    public static void CloseBorders(Field[,] world)
     {
-        var height = World.GetLength(0);
-        var width = World.GetLength(1);
+        var height = world.GetLength(0);
+        var width = world.GetLength(1);
         for (var y = 0; y < height; y++)
         {
-            World[y, 0] = new NonEnterableField();
-            World[y, width - 1] = new NonEnterableField();
+            world[y, 0] = new NonEnterableField();
+            world[y, width - 1] = new NonEnterableField();
         }
 
         for (var x = 0; x < width; x++)
         {
-            World[0, x] = new NonEnterableField();
-            World[height - 1, x] = new NonEnterableField();
+            world[0, x] = new NonEnterableField();
+            world[height - 1, x] = new NonEnterableField();
         }
     }
 }
@@ -211,29 +213,29 @@ public sealed class DungeonBuilder
     public DungeonBuilder DrunkardsWalk()
     {
         var ctx = _context;
-        var World = ctx.World;
+        var world = ctx.World;
         ctx.AddFeature(GameObjects.Movement);
         var curx = 1;
         var cury = 1;
-        World[1, 1] = new EmptyField();
+        world[1, 1] = new EmptyField();
         var rand = new Random(DateTime.Now.Millisecond);
 
 
         for (var i = 0; i < 20 * 40 * 3; i++)
         {
-            var new_x = curx;
-            var new_y = cury;
+            int newX;
+            int newY;
             do
             {
-                new_x = curx;
-                new_y = cury;
+                newX = curx;
+                newY = cury;
                 var dir = WorldGeneratorUtils.GetRandomDirection(rand);
-                WorldGeneratorUtils.NewXY(dir, ref new_x, ref new_y);
-            } while (new_x < 1 || new_x > 20 || new_y < 1 || new_y > 40);
+                WorldGeneratorUtils.NewXy(dir, ref newX, ref newY);
+            } while (newX < 1 || newX > 20 || newY < 1 || newY > 40);
 
-            World[new_y, new_x] = new EmptyField();
-            curx = new_x;
-            cury = new_y;
+            world[newY, newX] = new EmptyField();
+            curx = newX;
+            cury = newY;
         }
 
         return this;
@@ -247,10 +249,10 @@ public sealed class DungeonBuilder
     public DungeonBuilder MazeWithRooms()
     {
         var ctx = _context;
-        var World = ctx.World;
+        var world = ctx.World;
         ctx.AddFeature(GameObjects.Movement);
-        var height = World.GetLength(0);
-        var width = World.GetLength(1);
+        var height = world.GetLength(0);
+        var width = world.GetLength(1);
 
         var rand = new Random(DateTime.Now.Millisecond);
 
@@ -454,7 +456,7 @@ public sealed class DungeonBuilder
                 for (var x = 1; x <= width - 2; x++)
                 {
                     if (!open[y, x]) continue;
-                    if (x >= 1 && x <= 3 && y >= 1 && y <= 3) continue; // keep start room open
+                    if (x >= 1 && x <= 3 && y >= 1 && y <= 3) continue; // keep the start room open
 
                     var exits = 0;
                     foreach (var dir in new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) })
@@ -599,25 +601,25 @@ public sealed class DungeonBuilder
         for (var y = 1; y < height - 1; y++)
         for (var x = 1; x < width - 1; x++)
             if (open[y, x])
-                World[y, x] = new EmptyField();
+                world[y, x] = new EmptyField();
 
-        WorldGeneratorUtils.EnsureConnectedness(World);
+        WorldGeneratorUtils.EnsureConnectedness(world);
         return this;
     }
 
     public DungeonBuilder AddCentralRoom(int w, int h)
     {
         var ctx = _context;
-        var World = ctx.World;
-        var midy = World.GetLength(0) / 2;
-        var midx = World.GetLength(1) / 2;
+        var world = ctx.World;
+        var midy = world.GetLength(0) / 2;
+        var midx = world.GetLength(1) / 2;
         var startx = Math.Max(0, midx - w / 2);
         var starty = Math.Max(0, midy - h / 2);
-        for (var y = starty; y < Math.Min(starty + h, World.GetLength(0) - 1); y++)
-        for (var x = startx; x < Math.Min(startx + w, World.GetLength(1) - 1); x++)
-            World[y, x] = new EmptyField();
+        for (var y = starty; y < Math.Min(starty + h, world.GetLength(0) - 1); y++)
+        for (var x = startx; x < Math.Min(startx + w, world.GetLength(1) - 1); x++)
+            world[y, x] = new EmptyField();
 
-        WorldGeneratorUtils.EnsureConnectedness(World);
+        WorldGeneratorUtils.EnsureConnectedness(world);
         ctx.AddFeature(GameObjects.Movement);
         return this;
     }
@@ -625,24 +627,24 @@ public sealed class DungeonBuilder
     public DungeonBuilder AddWeapons(List<Func<IInventoryItem>> weapons)
     {
         var ctx = _context;
-        var World = ctx.World;
+        var world = ctx.World;
 
 
-        var EmptyPoints = new List<(int, int)>();
-        for (var y = 1; y < World.GetLength(0) - 1; y++)
-        for (var x = 1; x < World.GetLength(1) - 1; x++)
-            if (World[y, x].CanBeEntered)
-                EmptyPoints.Add((y, x));
+        var emptyPoints = new List<(int, int)>();
+        for (var y = 1; y < world.GetLength(0) - 1; y++)
+        for (var x = 1; x < world.GetLength(1) - 1; x++)
+            if (world[y, x].CanBeEntered)
+                emptyPoints.Add((y, x));
 
 
-        if (EmptyPoints.Count == 0 || weapons.Count == 0) return this;
+        if (emptyPoints.Count == 0 || weapons.Count == 0) return this;
         var random = new Random(DateTime.Now.Microsecond);
-        for (var i = 0; i < ctx.weapon_amount; i++)
+        for (var i = 0; i < ctx.WeaponAmount; i++)
         {
-            var point = random.Next(0, EmptyPoints.Count);
+            var point = random.Next(0, emptyPoints.Count);
             var weapon = random.Next(0, weapons.Count);
-            var (y, x) = EmptyPoints[point];
-            World[y, x].TryAddItem(weapons[weapon]());
+            var (y, x) = emptyPoints[point];
+            world[y, x].TryAddItem(weapons[weapon]());
         }
 
         ctx.AddFeature(GameObjects.Item);
@@ -652,23 +654,23 @@ public sealed class DungeonBuilder
     public DungeonBuilder AddItems(List<Func<IItem>> items)
     {
         var ctx = _context;
-        var World = ctx.World;
+        var world = ctx.World;
 
         if (items.Count == 0) return this;
-        var EmptyPoints = new List<(int, int)>();
-        for (var y = 1; y < World.GetLength(0) - 1; y++)
-        for (var x = 1; x < World.GetLength(1) - 1; x++)
-            if (World[y, x].CanBeEntered)
-                EmptyPoints.Add((y, x));
+        var emptyPoints = new List<(int, int)>();
+        for (var y = 1; y < world.GetLength(0) - 1; y++)
+        for (var x = 1; x < world.GetLength(1) - 1; x++)
+            if (world[y, x].CanBeEntered)
+                emptyPoints.Add((y, x));
 
-        if (EmptyPoints.Count == 0) return this;
+        if (emptyPoints.Count == 0) return this;
         var random = new Random(DateTime.Now.Microsecond);
-        for (var i = 0; i < ctx.item_amount; i++)
+        for (var i = 0; i < ctx.ItemAmount; i++)
         {
-            var point = random.Next(0, EmptyPoints.Count);
+            var point = random.Next(0, emptyPoints.Count);
             var item = random.Next(0, items.Count);
-            var (y, x) = EmptyPoints[point];
-            World[y, x].TryAddItem(items[item]());
+            var (y, x) = emptyPoints[point];
+            world[y, x].TryAddItem(items[item]());
         }
 
         ctx.AddFeature(GameObjects.Item);
@@ -678,7 +680,7 @@ public sealed class DungeonBuilder
     public DungeonBuilder AddChambers(int amount)
     {
         var ctx = _context;
-        var World = ctx.World;
+        var world = ctx.World;
         var chambers = new List<Square>();
         var rand = new Random(DateTime.Now.Microsecond);
 
@@ -689,12 +691,12 @@ public sealed class DungeonBuilder
 
             var w = rand.Next(3, 6);
             var h = rand.Next(3, 6);
-            var x = rand.Next(1, World.GetLength(1) - w - 1);
-            var y = rand.Next(1, World.GetLength(0) - h - 1);
-            var new_chamber = new Square(x, y, x + w, y + h);
-            if (!intersects(new_chamber))
+            var x = rand.Next(1, world.GetLength(1) - w - 1);
+            var y = rand.Next(1, world.GetLength(0) - h - 1);
+            var newChamber = new Square(x, y, x + w, y + h);
+            if (!Intersects(newChamber))
             {
-                chambers.Add(new_chamber);
+                chambers.Add(newChamber);
                 retry = 0;
             }
             else
@@ -704,28 +706,28 @@ public sealed class DungeonBuilder
         }
 
         foreach (var chamber in chambers)
-            for (var i = chamber.y1; i < chamber.y2; i++)
-            for (var j = chamber.x1; j < chamber.x2; j++)
-                World[i, j] = new EmptyField();
+            for (var i = chamber.Y1; i < chamber.Y2; i++)
+            for (var j = chamber.X1; j < chamber.X2; j++)
+                world[i, j] = new EmptyField();
 
-        WorldGeneratorUtils.EnsureConnectedness(World);
+        WorldGeneratorUtils.EnsureConnectedness(world);
         ctx.AddFeature(GameObjects.Movement);
 
         return this;
 
-        bool intersects(Square square)
+        bool Intersects(Square square)
         {
             foreach (var chamber in chambers)
             {
-                var ax1 = square.x1 - 1;
-                var ay1 = square.y1 - 1;
-                var ax2 = square.x2;
-                var ay2 = square.y2;
+                var ax1 = square.X1 - 1;
+                var ay1 = square.Y1 - 1;
+                var ax2 = square.X2;
+                var ay2 = square.Y2;
 
-                var bx1 = chamber.x1 - 1;
-                var by1 = chamber.y1 - 1;
-                var bx2 = chamber.x2;
-                var by2 = chamber.y2;
+                var bx1 = chamber.X1 - 1;
+                var by1 = chamber.Y1 - 1;
+                var bx2 = chamber.X2;
+                var by2 = chamber.Y2;
 
                 if (ax1 <= bx2 && ax2 >= bx1 && ay1 <= by2 && ay2 >= by1)
                     return true;
@@ -735,34 +737,34 @@ public sealed class DungeonBuilder
         }
     }
 
-    private struct Square(int _x1, int _y1, int _x2, int _y2)
+    private struct Square(int x1, int y1, int x2, int y2)
     {
-        public readonly int x1 = _x1;
-        public readonly int y1 = _y1;
-        public readonly int x2 = _x2;
-        public readonly int y2 = _y2;
+        public readonly int X1 = x1;
+        public readonly int Y1 = y1;
+        public readonly int X2 = x2;
+        public readonly int Y2 = y2;
     }
 
     public DungeonBuilder AddPaths(int amount)
     {
         var ctx = _context;
-        var World = ctx.World;
-        var height = World.GetLength(0);
-        var width = World.GetLength(1);
+        var world = ctx.World;
+        var height = world.GetLength(0);
+        var width = world.GetLength(1);
         var random = new Random(DateTime.Now.Microsecond);
 
-        var PathCount = amount;
-        for (var i = 0; i < PathCount; i++)
+        var pathCount = amount;
+        for (var i = 0; i < pathCount; i++)
         {
-            var s_x = random.Next(1, width - 2);
-            var s_y = random.Next(1, height - 2);
-            var e_x = random.Next(1, width - 1);
-            var e_y = random.Next(1, height - 1);
+            var sX = random.Next(1, width - 2);
+            var sY = random.Next(1, height - 2);
+            var eX = random.Next(1, width - 1);
+            var eY = random.Next(1, height - 1);
             var shape = random.Next(1, 3);
-            WorldGeneratorUtils.AddPath(s_x, s_y, e_x, e_y, shape, World);
+            WorldGeneratorUtils.AddPath(sX, sY, eX, eY, shape, world);
         }
 
-        WorldGeneratorUtils.EnsureConnectedness(World);
+        WorldGeneratorUtils.EnsureConnectedness(world);
         ctx.AddFeature(GameObjects.Movement);
         return this;
     }
@@ -797,8 +799,8 @@ public sealed class DungeonGrounds : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        ctx.item_amount = 15;
-        ctx.weapon_amount = 10;
+        ctx.ItemAmount = 15;
+        ctx.WeaponAmount = 10;
         DungeonBuilder.CreateFilledDungeon(ctx)
             .AddChambers(5)
             .AddPaths(10)
@@ -812,8 +814,8 @@ public sealed class EmptyDungeonStrategy : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        ctx.item_amount = 15;
-        ctx.weapon_amount = 10;
+        ctx.ItemAmount = 15;
+        ctx.WeaponAmount = 10;
         DungeonBuilder.CreateEmptyDungeon(ctx)
             .AddItems(DungeonStrategyDefaults.CreateItems())
             .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
@@ -824,8 +826,8 @@ public sealed class ExtraFunDungeon : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        ctx.item_amount = 15;
-        ctx.weapon_amount = 10;
+        ctx.ItemAmount = 15;
+        ctx.WeaponAmount = 10;
         DungeonBuilder.CreateFilledDungeon(ctx)
             .MazeWithRooms()
             .AddItems(DungeonStrategyDefaults.CreateItems())
@@ -837,8 +839,8 @@ public sealed class DrunkenlyDrawnDungeon : IDungeonStrategy
 {
     public void Build(DungeonBuildContext ctx)
     {
-        ctx.item_amount = 15;
-        ctx.weapon_amount = 10;
+        ctx.ItemAmount = 15;
+        ctx.WeaponAmount = 10;
         DungeonBuilder.CreateFilledDungeon(ctx)
             .DrunkardsWalk()
             .AddPaths(10)

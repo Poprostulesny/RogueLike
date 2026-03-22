@@ -1,3 +1,5 @@
+using OODProject.Core;
+
 namespace OODProject;
 
 public interface Field : IDescribable

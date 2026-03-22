@@ -1,14 +1,14 @@
-namespace OODProject;
+namespace OODProject.Core;
 
 public interface IItem : IDescribable
 {
-    public bool OnPickup(Hero Player);
+    public bool OnPickup(Hero player);
 }
 
 public abstract class IInventoryItem(string name, string description, char glyph = 'E') : IItem
 {
-    public abstract int item_size { get; }
-    public abstract bool isTwoHanded { get; }
+    public abstract int ItemSize { get; }
+    public abstract bool IsTwoHanded { get; }
     public abstract int Damage { get; }
     public char Glyph { get; } = glyph;
 
@@ -16,22 +16,22 @@ public abstract class IInventoryItem(string name, string description, char glyph
 
     public string Name { get; } = name;
 
-    public bool OnPickup(Hero Player)
+    public bool OnPickup(Hero player)
     {
-        return Player.TryTakeItem(this);
+        return player.TryTakeItem(this);
     }
 
 
-    public bool TryEquip(Hero Player)
+    public bool TryEquip(Hero player)
     {
-        return Player.TryTakeItem(this);
+        return player.TryTakeItem(this);
     }
 
-    public abstract void ApplyEffect(Hero Player);
-    public abstract void TakeOffEffect(Hero Player);
+    public abstract void ApplyEffect(Hero player);
+    public abstract void TakeOffEffect(Hero player);
 }
 
 public interface Currency : IItem
 {
-    public int amount { get; set; }
+    public int Amount { get; set; }
 }

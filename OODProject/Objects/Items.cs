@@ -1,4 +1,6 @@
-namespace OODProject;
+using OODProject.Core;
+
+namespace OODProject.Objects;
 
 public class Broomstick : IInventoryItem
 {
@@ -6,16 +8,16 @@ public class Broomstick : IInventoryItem
     {
     }
 
-    public override int item_size => 1;
-    public override bool isTwoHanded => false;
+    public override int ItemSize => 1;
+    public override bool IsTwoHanded => false;
     public override int Damage => 0;
 
 
-    public override void ApplyEffect(Hero Player)
+    public override void ApplyEffect(Hero player)
     {
     }
 
-    public override void TakeOffEffect(Hero Player)
+    public override void TakeOffEffect(Hero player)
     {
     }
 }
@@ -26,15 +28,15 @@ public class Teapot : IInventoryItem
     {
     }
 
-    public override int item_size => 1;
-    public override bool isTwoHanded => false;
+    public override int ItemSize => 1;
+    public override bool IsTwoHanded => false;
     public override int Damage => 0;
 
-    public override void ApplyEffect(Hero Player)
+    public override void ApplyEffect(Hero player)
     {
     }
 
-    public override void TakeOffEffect(Hero Player)
+    public override void TakeOffEffect(Hero player)
     {
     }
 }
@@ -45,15 +47,15 @@ public class BrokenSword : IInventoryItem
     {
     }
 
-    public override int item_size => 1;
-    public override bool isTwoHanded => false;
+    public override int ItemSize => 1;
+    public override bool IsTwoHanded => false;
     public override int Damage => 0;
 
-    public override void ApplyEffect(Hero Player)
+    public override void ApplyEffect(Hero player)
     {
     }
 
-    public override void TakeOffEffect(Hero Player)
+    public override void TakeOffEffect(Hero player)
     {
     }
 }

@@ -1,4 +1,4 @@
-namespace OODProject;
+namespace OODProject.Core;
 
 public enum Hand
 {
@@ -8,43 +8,43 @@ public enum Hand
 
 public class Hero : IDescribable
 {
-    public Hands hands = new Hands();
+    public readonly Hands Hands = new Hands();
 
-    public Inventory inventory = new(5);
+    public readonly Inventory Inventory = new(5);
     public int PosX;
     public int PosY;
-    public HeroStats stats = new();
+    public readonly HeroStats Stats = new();
 
     public char Glyph => '¶';
-    public string Description { get; }
+    public string Description => "Players character";
 
     public string Name => "Hero";
 
 
     public void TakeDamage(int amount)
     {
-        stats.Health -= amount;
+        Stats.Health -= amount;
     }
 
 
     public bool TryTakeItem(IInventoryItem item)
     {
-        return inventory.TryAdd(item);
+        return Inventory.TryAdd(item);
     }
 
     public void Drop(IInventoryItem item)
     {
-        inventory.Remove(item);
+        Inventory.Remove(item);
     }
 
     public void AddGold(int amount)
     {
-        stats.Gold += amount;
+        Stats.Gold += amount;
     }
 
     public void AddCoins(int amount)
     {
-        stats.Coins += amount;
+        Stats.Coins += amount;
     }
 
     public void Attack(int hand)

@@ -1,12 +1,14 @@
-namespace OODProject;
+using OODProject.Core;
+
+namespace OODProject.Objects;
 
 public class Gold(int amount) : Currency
 {
-    public int amount { get; set; } = amount;
+    public int Amount { get; set; } = amount;
 
-    public bool OnPickup(Hero Player)
+    public bool OnPickup(Hero player)
     {
-        Player.AddGold(amount);
+        player.AddGold(Amount);
        // MessageBus.Send($"Player picked up {amount} gold");
         return true;
     }
@@ -18,14 +20,14 @@ public class Gold(int amount) : Currency
 
 public class Coins(int amount) : Currency
 {
-    public int amount { get; set; } = amount;
+    public int Amount { get; set; } = amount;
     public char Glyph { get; set; } = 'C';
     public string Description { get; set; } = "Currency of this world";
     public string Name { get; set; } = $"Coins ({amount.ToString()})";
 
-    public bool OnPickup(Hero Player)
+    public bool OnPickup(Hero player)
     {
-        Player.AddCoins(amount);
+        player.AddCoins(Amount);
         //MessageBus.Send($"Player picked up {amount} coins");
         return true;
     }

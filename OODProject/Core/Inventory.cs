@@ -1,25 +1,25 @@
-namespace OODProject;
+namespace OODProject.Core;
 
 public class Hands
 {
-    public bool isTwoHandedEquipped;
+    public bool IsTwoHandedEquipped;
     public IInventoryItem? Left;
     public IInventoryItem? Right;
     public Hands(Hands other)
     {
         Left = other.Left;
         Right = other.Right;
-        isTwoHandedEquipped= other.isTwoHandedEquipped;
+        IsTwoHandedEquipped= other.IsTwoHandedEquipped;
         
     }
 
     public Hands()
     {
-        isTwoHandedEquipped = false;
+        IsTwoHandedEquipped = false;
         Left = null;
         Right = null;
     }
-    public bool CanEquip(IInventoryItem item, Hand dir)
+    private bool CanEquip(IInventoryItem item, Hand dir)
     {
         if (item == Left || item == Right)
         {
@@ -27,30 +27,30 @@ public class Hands
             return false;
         }
 
-        if (isTwoHandedEquipped)
+        if (IsTwoHandedEquipped)
         {
             MessageBus.Send("Before equipping an item free your hands!");
             return false;
         }
 
-        if (item.isTwoHanded && Right == null && Left == null) return true;
+        if (item.IsTwoHanded && Right == null && Left == null) return true;
 
-        if (item.isTwoHanded && (Left != null || Right != null)) return false;
+        if (item.IsTwoHanded && (Left != null || Right != null)) return false;
 
         if ((dir == Hand.Left && Left == null) || (dir == Hand.Right && Right == null)) return true;
 
         return false;
     }
 
-    public bool TryEquip(IInventoryItem item, Hand where, Hero Player)
+    public bool TryEquip(IInventoryItem item, Hand where, Hero player)
     {
         if (CanEquip(item, where))
         {
-            if (item.isTwoHanded)
+            if (item.IsTwoHanded)
             {
                 Left = item;
-                item.ApplyEffect(Player);
-                isTwoHandedEquipped = true;
+                item.ApplyEffect(player);
+                IsTwoHandedEquipped = true;
                 return true;
             }
 
@@ -64,23 +64,23 @@ public class Hands
                     break;
             }
 
-            item.ApplyEffect(Player);
+            item.ApplyEffect(player);
             return true;
         }
 
         return false;
     }
 
-    public IInventoryItem? TryRemove(Hand where, Hero Player)
+    public IInventoryItem? TryRemove(Hand where, Hero player)
     {
         IInventoryItem? item = null;
-        if (isTwoHandedEquipped)
+        if (IsTwoHandedEquipped)
         {
             item = Left;
-            isTwoHandedEquipped = false;
+            IsTwoHandedEquipped = false;
             Right = null;
             Left = null;
-            if (item != null) item.TakeOffEffect(Player);
+            if (item != null) item.TakeOffEffect(player);
             return item;
         }
 
@@ -104,24 +104,24 @@ public class Hands
                 break;
         }
 
-        if (item != null) item.TakeOffEffect(Player);
+        if (item != null) item.TakeOffEffect(player);
         return item;
     }
 }
 
-public class Inventory(int _capacity)
+public class Inventory(int capacity)
 {
-    public int Capacity = _capacity;
-    public int UsedUpCapacity;
+    public readonly int Capacity = capacity;
+    private int _usedUpCapacity;
 
     public List<IInventoryItem> Items { get; } = new();
 
     public bool TryAdd(IInventoryItem item)
     {
-        if (UsedUpCapacity + item.item_size <= Capacity)
+        if (_usedUpCapacity + item.ItemSize <= Capacity)
         {
             Items.Add(item);
-            UsedUpCapacity += item.item_size;
+            _usedUpCapacity += item.ItemSize;
             MessageBus.Send($"{item.Name} has been added to Inventory");
             return true;
         }
@@ -133,7 +133,7 @@ public class Inventory(int _capacity)
     public bool Remove(IInventoryItem item)
     {
         var res = Items.Remove(item);
-        if (res) UsedUpCapacity -= item.item_size;
+        if (res) _usedUpCapacity -= item.ItemSize;
 
         return res;
     }

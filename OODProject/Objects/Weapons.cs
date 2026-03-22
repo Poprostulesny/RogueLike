@@ -1,4 +1,6 @@
-namespace OODProject;
+using OODProject.Core;
+
+namespace OODProject.Objects;
 
 public class DragonSlayerSword : IInventoryItem
 {
@@ -6,19 +8,19 @@ public class DragonSlayerSword : IInventoryItem
     {
     }
 
-    public override int item_size => 1;
-    public override bool isTwoHanded => true;
+    public override int ItemSize => 1;
+    public override bool IsTwoHanded => true;
     public override int Damage => 100;
 
 
-    public override void ApplyEffect(Hero Player)
+    public override void ApplyEffect(Hero player)
     {
-        Player.stats.Strength += 10;
+        player.Stats.Strength += 10;
     }
 
-    public override void TakeOffEffect(Hero Player)
+    public override void TakeOffEffect(Hero player)
     {
-        Player.stats.Strength -= 10;
+        player.Stats.Strength -= 10;
     }
 }
 
@@ -28,15 +30,15 @@ public class RustySword : IInventoryItem
     {
     }
 
-    public override int item_size => 1;
-    public override bool isTwoHanded => false;
+    public override int ItemSize => 1;
+    public override bool IsTwoHanded => false;
     public override int Damage => 5;
 
-    public override void ApplyEffect(Hero Player)
+    public override void ApplyEffect(Hero player)
     {
     }
 
-    public override void TakeOffEffect(Hero Player)
+    public override void TakeOffEffect(Hero player)
     {
     }
 }
@@ -47,19 +49,19 @@ public class Shield : IInventoryItem
     {
     }
 
-    public override int item_size => 1;
-    public override bool isTwoHanded => false;
+    public override int ItemSize => 1;
+    public override bool IsTwoHanded => false;
     public override int Damage => 0;
 
-    public override void ApplyEffect(Hero Player)
+    public override void ApplyEffect(Hero player)
     {
-        Player.stats.Agility -= 10;
-        Player.stats.Defense += 50;
+        player.Stats.Agility -= 10;
+        player.Stats.Defense += 50;
     }
 
-    public override void TakeOffEffect(Hero Player)
+    public override void TakeOffEffect(Hero player)
     {
-        Player.stats.Agility += 10;
-        Player.stats.Defense -= 50;
+        player.Stats.Agility += 10;
+        player.Stats.Defense -= 50;
     }
 }

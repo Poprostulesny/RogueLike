@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace OODProject;
+namespace OODProject.Core;
 
 public static class MessageBus
 {
@@ -22,21 +22,33 @@ public static class MessageBus
 public class Renderer
 {
     private readonly IInput _input;
-    private readonly StringBuilder DisplayMessage = new();
-    private readonly IGameWorldView gameEngine;
-    
+    private readonly StringBuilder _displayMessage = new();
+    private readonly IGameWorldView _gameEngine;
+    private GameState _state = GameState.Play;
+    private enum GameState
+    {
+        Play,
+        Remap
+    }
 
 
     public Renderer(IInput input)
     {
         MessageBus.Message += msg =>
         {
-            DisplayMessage.AppendLine(msg);
-            DisplayWorldState();
+            _displayMessage.AppendLine(msg);
+            if (_state == GameState.Play)
+            {
+                DisplayWorldState();
+            }
+            else
+            {
+                DisplayRemap();
+            }
         };
-        MessageBus.ClearMessage += () => { DisplayMessage.Clear(); };
-        var g = new GameWorld();    
-        gameEngine = g;
+        MessageBus.ClearMessage += () => { _displayMessage.Clear(); };
+        var g = new GameWorld();
+        _gameEngine = g;
         _input = input;
         _input.Initialize(g);
         Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
@@ -52,9 +64,20 @@ public class Renderer
         Console.Clear();
         MessageBus.Send("Game Start");
         var t = DateTime.Now;
-
-        while (_input.TakeInput())
+        InputReturn val;
+        while ((val = _input.TakeInput()) != InputReturn.Stop)
         {
+            if (val == InputReturn.Remap)
+            {
+                _state = GameState.Remap;
+                while (_input.RemapKeys())
+                {
+                    MessageBus.Clear();
+                }
+
+                _state = GameState.Play;
+                continue;
+            }
             MessageBus.Clear();
             var dif = DateTime.Now - t;
             t = DateTime.Now;
@@ -62,6 +85,109 @@ public class Renderer
         }
     }
 
+    private void DisplayRemap()
+    {
+        Console.OutputEncoding = Encoding.UTF8;
+        var width = Console.WindowWidth;
+        var height = Console.WindowHeight;
+        var display = new List<StringBuilder>();
+        static string FormatEntry(string left, string right, int id, int leftWidth, int rightWidth) =>
+            $"{left.PadRight(leftWidth)} - {right.PadRight(rightWidth)} [{id}]";
+
+        var groupsInput = _input.PrimaryActionDictionary
+            .GroupBy(entry => string.Join("|",
+                entry.Value.AssociatedGameObjects
+                    .Select(x => x.ToString())
+                    .OrderBy(x => x)))
+            .OrderBy(group => group.Key)
+            .Select(group => group
+                .GroupBy(entry => entry.Value.GuideDescription)
+                .OrderBy(subgroup => subgroup.Key)
+                .Select(subgroup => subgroup.OrderBy(entry => entry.Key.Description)));
+
+        Console.SetCursorPosition(0, 0);
+        int gid = 1;
+        int id = 1;
+        foreach (var group in groupsInput)
+        {
+             id=1;
+            var actionRows = group.Select(subgroup => new
+                {
+                    Description = subgroup.First().Value.GuideDescription,
+                    Keys = subgroup.Select((entry) => $"{entry.Key.Description}[{id++}]").ToList()
+                })
+                .ToList();
+            var leftWidth = actionRows.Select(row => row.Description.Length).DefaultIfEmpty(0).Max();
+            var s = new StringBuilder();
+            foreach (var obj in group.First().First().Value.AssociatedGameObjects)
+            {
+                s.Append(obj.ToString());
+            }
+
+            s.Append($" [{gid++}]");
+            display.Add(s);
+
+            foreach (var row in actionRows)
+            {
+                display.Add(new StringBuilder($"{row.Description.PadRight(leftWidth)} - {string.Join(", ", row.Keys)}"));
+            }
+           
+            display.Add(new StringBuilder(""));
+        }
+
+        display.Add(new StringBuilder($"Hands"));
+        id = 1;
+        var handsOrdered = _input.Hands.GetForward.OrderBy(val => val.Value);
+        var handsLeftColumnWidth = _input.Hands.GetForward.Select(entry => entry.Value.ToString().Length).DefaultIfEmpty(0).Max();
+        var handsRightColumnWidth = _input.Hands.GetForward.Select(entry => entry.Key.Description.Length).DefaultIfEmpty(0).Max();
+        foreach (var obj in handsOrdered)
+        {
+            display.Add(new StringBuilder(FormatEntry(
+                obj.Value.ToString(),
+                obj.Key.Description,
+                id++,
+                handsLeftColumnWidth,
+                handsRightColumnWidth)));
+
+        }
+        display.Add(new StringBuilder(""));
+        display.Add(new StringBuilder($"Numbers"));
+        var numOrdered = _input.Numbers.GetForward.OrderBy(val => val.Value);
+        var numbersLeftColumnWidth = _input.Numbers.GetForward.Select(entry => entry.Value.ToString().Length).DefaultIfEmpty(0).Max();
+        var numbersRightColumnWidth = _input.Numbers.GetForward.Select(entry => entry.Key.Description.Length).DefaultIfEmpty(0).Max();
+        id = 1;
+        foreach (var obj in numOrdered)
+        {
+            display.Add(new StringBuilder(FormatEntry(
+                obj.Value.ToString(),
+                obj.Key.Description,
+                id++,
+                numbersLeftColumnWidth,
+                numbersRightColumnWidth)));
+        }
+        display.Add(new StringBuilder(""));
+        display.Add(new StringBuilder($"Confirmation Choices"));
+        var confOrdered = _input.ConfirmChoices.GetForward.OrderBy(val => val.Value);
+        var confirmationLeftColumnWidth = _input.ConfirmChoices.GetForward.Select(entry => entry.Value.ToString().Length).DefaultIfEmpty(0).Max();
+        var confirmationRightColumnWidth = _input.ConfirmChoices.GetForward.Select(entry => entry.Key.Description.Length).DefaultIfEmpty(0).Max();
+        id = 1;
+        foreach (var obj in confOrdered)
+        {
+            display.Add(new StringBuilder(FormatEntry(
+                obj.Value.ToString(),
+                obj.Key.Description,
+                id++,
+                confirmationLeftColumnWidth,
+                confirmationRightColumnWidth)));
+        }
+
+        foreach (var s in _displayMessage.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
+            display.Add(new StringBuilder(s));
+        int size = display.Count;
+        DisplayBuffer(width, height, display);
+        Console.SetCursorPosition(0, Math.Min(height - 1, size));
+
+    }
 
     private void DisplayWorldState()
     {
@@ -69,16 +195,16 @@ public class Renderer
         var width = Console.WindowWidth;
         var height = Console.WindowHeight;
         var display = new List<StringBuilder>();
-        for (var i = 0; i < gameEngine.Width; i++)
+        for (var i = 0; i < _gameEngine.Width; i++)
         {
             display.Add(new StringBuilder());
-            for (var y = 0; y < gameEngine.Height; y++)
+            for (var y = 0; y < _gameEngine.Height; y++)
             {
-                display[i].Append(gameEngine.GetGlyphAt(y,i));
-                if (gameEngine.GetGlyphAt(y,i) != '█' && gameEngine.GetGlyphAt(y,i) != ' ')
+                display[i].Append(_gameEngine.GetGlyphAt(y, i));
+                if (_gameEngine.GetGlyphAt(y, i) != '█' && _gameEngine.GetGlyphAt(y, i) != ' ')
                     display[i].Append(' ');
                 else
-                    display[i].Append(gameEngine.GetGlyphAt(y,i));
+                    display[i].Append(_gameEngine.GetGlyphAt(y, i));
             }
 
             display[i].Append('|');
@@ -103,7 +229,7 @@ public class Renderer
 
         display[cnt].Append(DisplayHands());
         cnt++;
-        var field = DisplayField(gameEngine.PlayerPosX, gameEngine.PlayerPosY);
+        var field = DisplayField(_gameEngine.PlayerPosX, _gameEngine.PlayerPosY);
 
         foreach (var s in field)
         {
@@ -113,28 +239,18 @@ public class Renderer
         }
 
         display.Add(DisplayGuide());
-        foreach (var s in DisplayMessage.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
+        foreach (var s in _displayMessage.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
             display.Add(new StringBuilder(s));
         int size = display.Count;
-        while (display.Count < height) display.Add(new StringBuilder());
-        var buffer = new StringBuilder(height * width);
-        for (var i = 0; i < height; i++)
-        {
-            var line = display[i].ToString();
-            if (line.Length > width - 1) line = line.Substring(0, width - 1);
-            buffer.Append(line.PadRight(width - 1));
-            if (i < height - 1) buffer.Append('\n');
-        }
 
+        DisplayBuffer(width, height, display);
 
-        Console.SetCursorPosition(0,0);
-        Console.Write(buffer.ToString());
-        Console.SetCursorPosition(0,size);
+        Console.SetCursorPosition(0, Math.Min(height - 1, size));
     }
 
     public string[] DisplayInventory()
     {
-        (var inventory, var capacity) = gameEngine.GetInventoryItems();
+        (var inventory, var capacity) = _gameEngine.GetInventoryItems();
         var display = new string[capacity + 1];
         display[0] = "Inventory:";
         var cnt = 1;
@@ -144,7 +260,7 @@ public class Renderer
             cnt++;
         }
 
-        while (cnt < capacity  +1)
+        while (cnt < capacity + 1)
         {
             display[cnt] = "";
             cnt++;
@@ -157,11 +273,11 @@ public class Renderer
     {
         var disp = new List<string>();
         disp.Add(new string("Player stands on an Empty Field:"));
-        var occupant = gameEngine.GetOccupantAt(x, y);
-        if (occupant != null) 
+        var occupant = _gameEngine.GetOccupantAt(x, y);
+        if (occupant != null)
             disp.Add(new string(
                 $"Enemy: {occupant.Name}: {occupant.Description}"));
-        var items = gameEngine.GetItemsAt(x, y);
+        var items = _gameEngine.GetItemsAt(x, y);
         if (items.Count != 0)
         {
             disp.Add(new string("Items:"));
@@ -176,24 +292,40 @@ public class Renderer
         return disp.ToArray();
     }
 
-
+    private void DisplayBuffer(int width, int height, List<StringBuilder> display)
+    {
+        while (display.Count < height)
+        {
+            display.Add(new StringBuilder(""));
+        }
+        var buffer = new StringBuilder(height * width);
+        for (var i = 0; i < height; i++)
+        {
+            var line = display[i].ToString();
+            if (line.Length > width - 1) line = line.Substring(0, width - 1);
+            buffer.Append(line.PadRight(width - 1));
+            if (i < height - 1) buffer.Append('\n');
+        }
+        Console.SetCursorPosition(0, 0);
+        Console.Write(buffer.ToString());
+    }
     public string DisplayHands()
-    {   
-        var hands = gameEngine.GetHands();
-        if ( hands.isTwoHandedEquipped) return $"Both Hands: { hands.Left.Name}";
+    {
+        var hands = _gameEngine.GetHands();
+        if (hands.IsTwoHandedEquipped) return $"Both Hands: {hands.Left?.Name}";
 
-        if ( hands.Left == null &&  hands.Right == null)
+        if (hands.Left == null && hands.Right == null)
             return "Left: None | Right: None";
 
-        if ( hands.Left == null) return $"Left: None | Right: { hands.Right.Name}";
+        if (hands.Left == null&&hands.Right!=null) return $"Left: None | Right: {hands.Right.Name}";
 
-        if ( hands.Right == null) return $"Left: { hands.Left.Name} | Right: None";
-        return $"Left: { hands.Left.Name} | Right: { hands.Right.Name}";
+        if (hands.Right == null&&hands.Left!=null) return $"Left: {hands.Left.Name} | Right: None";
+        return $"Left: {hands.Left?.Name} | Right: {hands.Right?.Name}";
     }
 
     public string[] DisplayStats()
     {
-        var s = gameEngine.GetHeroStats();
+        var s = _gameEngine.GetHeroStats();
         var stats = new string[8];
         stats[0] = "Hero";
         stats[1] = $"Strength: {s.Strength}";
@@ -210,15 +342,28 @@ public class Renderer
     public StringBuilder DisplayGuide()
     {
         var guide = new StringBuilder();
-        var i = 0;
-        foreach (var worldObject in gameEngine.WorldFeatures)
-        {
-            if (i != 0) guide.Append("|");
-            guide.Append(_input.Description[worldObject]);
-            i++;
-        }
 
-        
+        var availableActions = _input.PrimaryActionDictionary
+            .Where(entry =>
+                entry.Value.AssociatedGameObjects.Any(gameObject =>
+                    _gameEngine.WorldFeatures.Contains(gameObject)));
+
+        var groupedActions = availableActions
+            .GroupBy(entry => entry.Value.GuideDescription);
+
+        var guideText = groupedActions
+            .Select(group =>
+            {
+                var descriptions = group
+                    .Select(entry => entry.Key.Description)
+                    .Distinct();
+
+                return $"{group.Key} - [{string.Join(", ", descriptions)}]";
+            });
+
+        guide.Append(string.Join(" | ", guideText));
+
+
         return guide;
     }
 }
