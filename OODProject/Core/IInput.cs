@@ -124,12 +124,8 @@ public abstract class IInput
 
 public class KeyboardInput : IInput
 {
-
-
     private readonly StrongBox<InputReturn> _quitRef = new(InputReturn.Continue);
-
-
-
+    
     private void InsertDefaultsSecondary()
     {
         Hands = new();
@@ -226,7 +222,8 @@ public class KeyboardInput : IInput
         MessageBus.Send("To change a key binding press P for primary, H for Hands, N for Numbers, B to exit");
         var input = Console.ReadKey(true).Key;
         if (input == ConsoleKey.B)
-        {
+        {   
+            MessageBus.Clear();
             return false;
         }
         var groupsInput = PrimaryActionDictionary

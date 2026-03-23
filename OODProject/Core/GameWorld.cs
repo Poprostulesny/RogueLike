@@ -50,10 +50,10 @@ public class GameWorld:IGameWorldView , IInputPrimitives
         var ctx = new DungeonBuildContext(_world);
 
         //use some strategies or create your own from the building blocks
+        
         var strategy = new DungeonGrounds();
         strategy.Build(ctx);
         
-
         //dont change things below
         _worldFeatures = ctx.Features;
         _worldFeatures.Add(GameObjects.All);

@@ -238,7 +238,9 @@ public class Renderer
             cnt++;
         }
 
-        display.Add(DisplayGuide());
+        //display.Add(DisplayGuide());
+        foreach (var s in SplitLine(DisplayGuide().ToString(),width))
+            display.Add(new StringBuilder(s));
         foreach (var s in _displayMessage.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
             display.Add(new StringBuilder(s));
         int size = display.Count;
@@ -248,6 +250,38 @@ public class Renderer
         Console.SetCursorPosition(0, Math.Min(height - 1, size));
     }
 
+    private string[] SplitLine(string line, int width)
+    {
+        if (line.Length < width)
+        {
+            return new string[] { line };
+        }
+        var stringarray = new List<string>();
+        int lastdash = 0;
+        int prev_dash = 0;
+        int newarri = 0;
+        for (int i = 0; i < line.Length; i++)
+        {
+            if (line[i] == '|')
+            {   
+                lastdash = i;
+            }
+
+            if (i != 0 && (i-prev_dash) % width == 0)
+            {   
+                
+                stringarray.Add(line.Substring(prev_dash, lastdash - prev_dash).Trim());
+                prev_dash = lastdash + 1;
+
+            }
+        }
+
+        if (lastdash != line.Length - 1)
+        {
+            stringarray.Add(line.Substring(prev_dash, line.Length-prev_dash).Trim());
+        }
+        return stringarray.ToArray();
+    }
     public string[] DisplayInventory()
     {
         (var inventory, var capacity) = _gameEngine.GetInventoryItems();

@@ -12,7 +12,6 @@ public class DragonSlayerSword : IInventoryItem
     public override bool IsTwoHanded => true;
     public override int Damage => 100;
 
-
     public override void ApplyEffect(Hero player)
     {
         player.Stats.Strength += 10;
