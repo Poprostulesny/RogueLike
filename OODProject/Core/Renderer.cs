@@ -70,12 +70,13 @@ public class Renderer
             if (val == InputReturn.Remap)
             {
                 _state = GameState.Remap;
-                while (_input.RemapKeys())
+                do
                 {
                     MessageBus.Clear();
-                }
+                } while (_input.RemapKeys());
 
                 _state = GameState.Play;
+               
                 continue;
             }
             MessageBus.Clear();
@@ -258,8 +259,8 @@ public class Renderer
         }
         var stringarray = new List<string>();
         int lastdash = 0;
-        int prev_dash = 0;
-        int newarri = 0;
+        int prevDash = 0;
+        
         for (int i = 0; i < line.Length; i++)
         {
             if (line[i] == '|')
@@ -267,18 +268,18 @@ public class Renderer
                 lastdash = i;
             }
 
-            if (i != 0 && (i-prev_dash) % width == 0)
+            if (i != 0 && (i-prevDash) % width == 0)
             {   
                 
-                stringarray.Add(line.Substring(prev_dash, lastdash - prev_dash).Trim());
-                prev_dash = lastdash + 1;
+                stringarray.Add(line.Substring(prevDash, lastdash - prevDash).Trim());
+                prevDash = lastdash + 1;
 
             }
         }
 
         if (lastdash != line.Length - 1)
         {
-            stringarray.Add(line.Substring(prev_dash, line.Length-prev_dash).Trim());
+            stringarray.Add(line.Substring(prevDash, line.Length-prevDash).Trim());
         }
         return stringarray.ToArray();
     }

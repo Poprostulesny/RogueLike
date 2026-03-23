@@ -220,157 +220,170 @@ public class KeyboardInput : IInput
     public override bool RemapKeys()
     {
         MessageBus.Send("To change a key binding press P for primary, H for Hands, N for Numbers, B to exit");
-        var input = Console.ReadKey(true).Key;
-        if (input == ConsoleKey.B)
+        ConsoleKey input;
+        if ((input = Console.ReadKey(true).Key) != ConsoleKey.B)
         {   
-            MessageBus.Clear();
-            return false;
+            
+            
+            var groupsInput = PrimaryActionDictionary
+                .GroupBy(entry => string.Join("|",
+                    entry.Value.AssociatedGameObjects
+                        .Select(x => x.ToString())
+                        .OrderBy(x => x)))
+                .OrderBy(group => group.Key)
+                .Select(group => group.OrderBy(x => x.Key.Description)).ToArray();
+            var numOrdered = Numbers.GetForward.OrderBy(val => val.Value).ToList();
+            var handsOrdered = Hands.GetForward.OrderBy(val => val.Value).ToList();
+
+            int id;
+            bool alter;
+            ConsoleKey inp;
+            switch (input)
+            {
+
+                case ConsoleKey.P:
+                    MessageBus.Send($"Choose the group id [1-{groupsInput.Length}");
+                    int gid = KeyboardUtils.ReadNumber(Ctx) - 1;
+                    if (gid < 0 || gid > groupsInput.Count())
+                    {
+                        return true;
+                    }
+
+                    MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
+                    inp = Console.ReadKey(true).Key;
+
+                    switch (inp)
+                    {
+                        case ConsoleKey.A:
+                            alter = false;
+                            break;
+                        case ConsoleKey.R:
+                            alter = true;
+                            break;
+                        default:
+                            return true;
+
+                    }
+
+                    var g = groupsInput[gid].ToList();
+                    MessageBus.Send($"Choose the bind which you want to rep id [1-{g.Count}");
+                    id = KeyboardUtils.ReadNumber(Ctx) - 1;
+                    if (id < 0 || id >= g.Count)
+                    {
+                        return true;
+                    }
+
+                    MessageBus.Send("Choose the key you want to replace/add to the given action");
+                    var k = Console.ReadKey(true).Key;
+                    if (PrimaryActionDictionary.ContainsKey(InputCode.FromConsoleKey(k)))
+                    {
+                        MessageBus.Send("You can't have two actions binded to the same key");
+                        return true;
+                    }
+
+                    var o = g[id].Value;
+                    if (alter)
+                    {
+                        PrimaryActionDictionary.Remove(g[id].Key);
+                    }
+
+                    PrimaryActionDictionary.Add(InputCode.FromConsoleKey(k), o);
+                    MessageBus.Send("Added succesfully");
+
+                    break;
+                case ConsoleKey.H:
+                    MessageBus.Send($"Choose the bind which you want to rep id [1-{handsOrdered.Count}");
+                    id = KeyboardUtils.ReadNumber(Ctx) - 1;
+                    if (id < 0 || id >= handsOrdered.Count)
+                    {
+                        return true;
+                    }
+
+                    MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
+                    inp = Console.ReadKey(true).Key;
+
+                    switch (inp)
+                    {
+                        case ConsoleKey.A:
+                            alter = false;
+                            break;
+                        case ConsoleKey.R:
+                            alter = true;
+                            break;
+                        default:
+                            return true;
+
+                    }
+
+                    var obj = handsOrdered[id];
+                    MessageBus.Send("Choose the key you want to replace/add to the given action");
+                    inp = Console.ReadKey(true).Key;
+                    if (Hands.TryGetByLeft(InputCode.FromConsoleKey(inp), out var jk))
+                    {
+                        MessageBus.Send("You can't have two actions binded to the same key");
+                        return true;
+                    }
+
+                    if (alter)
+                    {
+                        Hands.Remove(obj.Key);
+                    }
+
+
+                    Hands.Add(InputCode.FromConsoleKey(inp), obj.Value);
+                    MessageBus.Send("Added succesfully");
+                    break;
+                case ConsoleKey.N:
+                    MessageBus.Send($"Choose the bind which you want to rep id [1-{numOrdered.Count}");
+                    id = KeyboardUtils.ReadNumber(Ctx) - 1;
+                    if (id < 0 || id >= numOrdered.Count)
+                    {
+                        return true;
+                    }
+
+                    MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
+                    inp = Console.ReadKey(true).Key;
+
+                    switch (inp)
+                    {
+                        case ConsoleKey.A:
+                            alter = false;
+                            break;
+                        case ConsoleKey.R:
+                            alter = true;
+                            break;
+                        default:
+                           
+                            return true;
+
+                    }
+
+                    var oj = numOrdered[id];
+                    MessageBus.Send("Choose the key you want to replace/add to the given action");
+                    inp = Console.ReadKey(true).Key;
+                    if (Numbers.TryGetByLeft(InputCode.FromConsoleKey(inp), out var kk))
+                    {
+                        MessageBus.Send("You can't have two actions binded to the same key");
+                        
+                        return true;
+                    }
+
+                    if (alter)
+                    {
+                        Numbers.Remove(oj.Key);
+                    }
+
+
+                    Numbers.Add(InputCode.FromConsoleKey(inp), oj.Value);
+                    MessageBus.Send("Added succesfully");
+                    
+                    return true;
+                    break;
+                
+            }
+            
         }
-        var groupsInput = PrimaryActionDictionary
- .GroupBy(entry => string.Join("|",
-     entry.Value.AssociatedGameObjects
-         .Select(x => x.ToString())
-         .OrderBy(x => x)))
- .OrderBy(group => group.Key)
- .Select(group => group.OrderBy(x => x.Key.Description)).ToArray();
-        var numOrdered = Numbers.GetForward.OrderBy(val => val.Value).ToList();
-        var handsOrdered = Hands.GetForward.OrderBy(val => val.Value).ToList();
-      
-        int id ;
-        bool alter;
-        ConsoleKey inp;
-        switch (input)
-        {
-          
-            case ConsoleKey.P:
-                MessageBus.Send($"Choose the group id [1-{groupsInput.Length}");
-                int gid = KeyboardUtils.ReadNumber(Ctx) - 1;
-                if (gid < 0 || gid > groupsInput.Count())
-                {
-                    return false;
-                }
-
-                MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
-                inp = Console.ReadKey(true).Key;
-
-                switch (inp)
-                {
-                    case ConsoleKey.A:
-                        alter = false;
-                        break;
-                    case ConsoleKey.R:
-                        alter = true;
-                        break;
-                    default:
-                        return false;
-
-                }
-                var g = groupsInput[gid].ToList();
-                MessageBus.Send($"Choose the bind which you want to rep id [1-{g.Count}");
-                id = KeyboardUtils.ReadNumber(Ctx) - 1;
-                if (id < 0 || id >= g.Count)
-                {
-                    return false;
-                }
-                MessageBus.Send("Choose the key you want to replace/add to the given action");
-                var k = Console.ReadKey(true).Key;
-                if (PrimaryActionDictionary.ContainsKey(InputCode.FromConsoleKey(k)))
-                {
-                    MessageBus.Send("You can't have two actions binded to the same key");
-                    return false;
-                }
-                var o = g[id].Value;
-                if (alter)
-                {
-                    PrimaryActionDictionary.Remove(g[id].Key);
-                }
-
-                PrimaryActionDictionary.Add(InputCode.FromConsoleKey(k), o);
-                MessageBus.Send("Added succesfully");
-
-                break;
-            case ConsoleKey.H:
-                MessageBus.Send($"Choose the bind which you want to rep id [1-{handsOrdered.Count}");
-                id = KeyboardUtils.ReadNumber(Ctx) - 1;
-                if (id < 0 || id >= handsOrdered.Count)
-                {
-                    return false;
-                }
-                MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
-                inp = Console.ReadKey(true).Key;
-
-                switch (inp)
-                {
-                    case ConsoleKey.A:
-                        alter = false;
-                        break;
-                    case ConsoleKey.R:
-                        alter = true;
-                        break;
-                    default:
-                        return false;
-
-                }
-                var obj = handsOrdered[id];
-                MessageBus.Send("Choose the key you want to replace/add to the given action");
-                inp = Console.ReadKey(true).Key;
-                if (Hands.TryGetByLeft(InputCode.FromConsoleKey(inp), out var jk))
-                {
-                    MessageBus.Send("You can't have two actions binded to the same key");
-                    return false;
-                }
-                if (alter)
-                {
-                    Hands.Remove(obj.Key);
-                }
-
-
-                Hands.Add(InputCode.FromConsoleKey(inp), obj.Value);
-                MessageBus.Send("Added succesfully");
-                break;
-            case ConsoleKey.N:
-                MessageBus.Send($"Choose the bind which you want to rep id [1-{numOrdered.Count}");
-                id = KeyboardUtils.ReadNumber(Ctx) - 1;
-                if (id < 0 || id >= numOrdered.Count)
-                {
-                    return false;
-                }
-                MessageBus.Send($"Do you want to remap the key[R] or add a new bind[A]");
-                inp = Console.ReadKey(true).Key;
-
-                switch (inp)
-                {
-                    case ConsoleKey.A:
-                        alter = false;
-                        break;
-                    case ConsoleKey.R:
-                        alter = true;
-                        break;
-                    default:
-                        return false;
-
-                }
-                var oj = numOrdered[id];
-                MessageBus.Send("Choose the key you want to replace/add to the given action");
-                inp = Console.ReadKey(true).Key;
-                if (Numbers.TryGetByLeft(InputCode.FromConsoleKey(inp), out var kk))
-                {
-                    MessageBus.Send("You can't have two actions binded to the same key");
-                    return false;
-                }
-                if (alter)
-                {
-                    Numbers.Remove(oj.Key);
-                }
-
-
-                Numbers.Add(InputCode.FromConsoleKey(inp), oj.Value);
-                MessageBus.Send("Added succesfully");
-
-                break;
-
-        }
-
+        MessageBus.Clear();
         return false;
 
     }
