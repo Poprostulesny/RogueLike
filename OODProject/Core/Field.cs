@@ -1,13 +1,11 @@
-using OODProject.Core;
-
-namespace OODProject;
+namespace OODProject.Core;
 
 public interface Field : IDescribable
 {
     public bool CanBeEntered { get; }
 
 
-    public IOccupant? Occupant { get; }
+    public IEnemy? Occupant { get; }
     public Hero? Player { get; }
     public bool isOccupied { get; }
     public List<IItem> Items { get; }
@@ -15,16 +13,18 @@ public interface Field : IDescribable
     public void RemoveHero();
     public bool TryAddItem(IItem _item);
     public bool TryTakeItem(IItem _item);
+    public bool TryAddEnemy(IEnemy enemy);
+    public bool RemoveEnemy();
 }
 
 public class EmptyField : Field
 {
     public bool CanBeEntered => true;
-    public IOccupant? Occupant { get; private set; }
+    public IEnemy? Occupant { get; private set; }
 
     public Hero? Player { get; private set; }
 
-    public bool isOccupied { get; private set; }
+    public bool isOccupied { get=>Occupant!=null;  }
 
     public List<IItem> Items { get; } = new();
 
@@ -45,6 +45,31 @@ public class EmptyField : Field
         var res = Items.Remove(item);
         UpdateGlyph();
         return res;
+    }
+
+    public bool TryAddEnemy(IEnemy enemy)
+    {
+        if (Occupant == null)
+        {  
+            Occupant = enemy;
+            UpdateGlyph();
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool RemoveEnemy()
+    {
+        if (Occupant == null)
+        {
+            
+            return false;
+        }
+
+        Occupant = null;
+        UpdateGlyph();
+        return false;
     }
 
 
@@ -92,20 +117,13 @@ public class EmptyField : Field
         Glyph = ' ';
     }
 
-    public bool TryAddOccupant(IOccupant occupant)
-    {
-        if (Occupant != null) return false;
-        Occupant = occupant;
-        isOccupied = true;
-        UpdateGlyph();
-        return true;
-    }
+   
 }
 
 public class NonEnterableField : Field
 {
     public bool CanBeEntered => false;
-    public IOccupant? Occupant => null;
+    public IEnemy? Occupant => null;
     public Hero? Player => null;
     public bool isOccupied => false;
     public List<IItem> Items => new();
@@ -125,6 +143,16 @@ public class NonEnterableField : Field
     }
 
     public bool TryTakeItem(IItem _item)
+    {
+        return false;
+    }
+
+    public bool TryAddEnemy(IEnemy enemy)
+    {
+        return false;
+    }
+
+    public bool RemoveEnemy()
     {
         return false;
     }

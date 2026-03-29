@@ -10,16 +10,19 @@ public interface IDungeonStrategy
 public sealed class DungeonBuildContext(
     Field[,] world,
     List<Func<IItem>>? items = null,
-    List<Func<IInventoryItem>>? weapons = null,
+    List<Func<IInventoryItemBase>>? weapons = null,
+    List<Func<IEnemy>>? enemies = null,
     int itemAmount = 0,
-    int weaponAmount = 0)
+    int weaponAmount = 0, int enemyCount =0)
 {
     public int ItemAmount = itemAmount;
     public List<Func<IItem>>? Items = items;
     public int WeaponAmount = weaponAmount;
-    public List<Func<IInventoryItem>>? Weapons = weapons;
+    public List<Func<IInventoryItemBase>>? Weapons = weapons;
+    public int EnemyCount = enemyCount;
+    public List<Func<IEnemy>>? Enemies = enemies;
     public Field[,] World = world;
-
+    
     public SortedSet<GameObjects> Features { get; } = new();
 
     public void AddFeature(GameObjects feature)
@@ -622,13 +625,17 @@ public sealed class DungeonBuilder
         WorldGeneratorUtils.EnsureConnectedness(world);
         ctx.AddFeature(GameObjects.Movement);
         return this;
-    }
-
-    public DungeonBuilder AddWeapons(List<Func<IInventoryItem>> weapons)
+    }   
+    
+    public DungeonBuilder AddWeapons()
     {
         var ctx = _context;
         var world = ctx.World;
-
+        var weapons = ctx.Weapons;
+        if (ctx.WeaponAmount <= 0)
+        {
+            return this;
+        }
 
         var emptyPoints = new List<(int, int)>();
         for (var y = 1; y < world.GetLength(0) - 1; y++)
@@ -651,11 +658,46 @@ public sealed class DungeonBuilder
         return this;
     }
 
-    public DungeonBuilder AddItems(List<Func<IItem>> items)
+    public DungeonBuilder AddEnemies()
     {
         var ctx = _context;
         var world = ctx.World;
+        var enemies = ctx.Enemies;
+        if (ctx.EnemyCount <= 0)
+        {
+            return this;
+        }
 
+        var emptyPoints = new List<(int, int)>();
+        for (var y = 1; y < world.GetLength(0) - 1; y++)
+        for (var x = 1; x < world.GetLength(1) - 1; x++)
+            if (world[y, x].CanBeEntered)
+                emptyPoints.Add((y, x));
+
+
+        if (emptyPoints.Count == 0 || enemies.Count == 0) return this;
+        var random = new Random(DateTime.Now.Microsecond);
+        for (var i = 0; i < ctx.WeaponAmount; i++)
+        {
+            var success = false;
+            do
+            {
+                var point = random.Next(0, emptyPoints.Count);
+                var enemy = random.Next(0, enemies.Count);
+                var (y, x) = emptyPoints[point];
+                success = world[y, x].TryAddEnemy(enemies[enemy]());
+            } while (!success);
+
+        }
+
+        ctx.AddFeature(GameObjects.Enemies);
+        return this;
+    }
+    public DungeonBuilder AddItems()
+    {
+        var ctx = _context;
+        var world = ctx.World;
+        List<Func<IItem>> items = ctx.Items;
         if (items.Count == 0) return this;
         var emptyPoints = new List<(int, int)>();
         for (var y = 1; y < world.GetLength(0) - 1; y++)
@@ -780,17 +822,29 @@ internal static class DungeonStrategyDefaults
             () => new Coins(10),
             () => new Broomstick(),
             () => new Teapot(),
-            () => new BrokenSword()
+            () => new BrokenSword(),
+            
         ];
     }
 
-    public static List<Func<IInventoryItem>> CreateWeapons()
+    public static List<Func<IInventoryItemBase>> CreateWeapons()
     {
         return
         [
             () => new DragonSlayerSword(),
             () => new RustySword(),
-            () => new Shield()
+            () => new Shield(),
+            ()=> new StrongDecorator(new DragonSlayerSword(), 10),
+            ()=> new LuckyDecorator(new RustySword(), 5)
+            
+        ];
+    }
+    public static List<Func<IEnemy>> CreateEnemies()
+    {
+        return
+        [
+            () => new Orc(),
+           
         ];
     }
 }
@@ -801,12 +855,16 @@ public sealed class DungeonGrounds : IDungeonStrategy
     {
         ctx.ItemAmount = 15;
         ctx.WeaponAmount = 10;
+        ctx.Items = DungeonStrategyDefaults.CreateItems();
+        ctx.Weapons = DungeonStrategyDefaults.CreateWeapons();  ctx.Items = DungeonStrategyDefaults.CreateItems();
+        ctx.Enemies = DungeonStrategyDefaults.CreateEnemies();
+        ctx.EnemyCount = 3; 
         DungeonBuilder.CreateFilledDungeon(ctx)
             .AddChambers(5)
             .AddPaths(10)
             .AddCentralRoom(7, 10)
-            .AddItems(DungeonStrategyDefaults.CreateItems())
-            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
+            .AddItems()
+            .AddWeapons().AddEnemies();
     }
 }
 
@@ -816,9 +874,11 @@ public sealed class EmptyDungeonStrategy : IDungeonStrategy
     {
         ctx.ItemAmount = 15;
         ctx.WeaponAmount = 10;
+        ctx.Items = DungeonStrategyDefaults.CreateItems();
+        ctx.Weapons = DungeonStrategyDefaults.CreateWeapons();
         DungeonBuilder.CreateEmptyDungeon(ctx)
-            .AddItems(DungeonStrategyDefaults.CreateItems())
-            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
+            .AddItems()
+            .AddWeapons();
     }
 }
 
@@ -828,10 +888,14 @@ public sealed class ExtraFunDungeon : IDungeonStrategy
     {
         ctx.ItemAmount = 15;
         ctx.WeaponAmount = 10;
+        ctx.Items = DungeonStrategyDefaults.CreateItems();
+        ctx.Weapons = DungeonStrategyDefaults.CreateWeapons();
+        ctx.Enemies = DungeonStrategyDefaults.CreateEnemies();
+        ctx.EnemyCount = 3; 
         DungeonBuilder.CreateFilledDungeon(ctx)
             .MazeWithRooms()
-            .AddItems(DungeonStrategyDefaults.CreateItems())
-            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
+            .AddItems()
+            .AddWeapons().AddEnemies();
     }
 }
 
@@ -841,10 +905,12 @@ public sealed class DrunkenlyDrawnDungeon : IDungeonStrategy
     {
         ctx.ItemAmount = 15;
         ctx.WeaponAmount = 10;
+        ctx.Items = DungeonStrategyDefaults.CreateItems();
+        ctx.Weapons = DungeonStrategyDefaults.CreateWeapons();
         DungeonBuilder.CreateFilledDungeon(ctx)
             .DrunkardsWalk()
             .AddPaths(10)
-            .AddItems(DungeonStrategyDefaults.CreateItems())
-            .AddWeapons(DungeonStrategyDefaults.CreateWeapons());
+            .AddItems()
+            .AddWeapons();
     }
 }

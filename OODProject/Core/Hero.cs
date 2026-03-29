@@ -61,15 +61,15 @@ public class Hero : IDescribable
 
 public class HeroStats
 {
-    public int Agility = 20;
+    public int Agility = 2;
     public int Coins=0;
-    public int Defense = 20;
+    public int Defense = 2;
     public int Gold=0;
-    public int Health = 20;
-    public int Luck = 20;
-    public int Dexterity = 20;
-    public int Aggression = 20;
-    public int Persuasion = 20;
-    public int Strength = 20;
-    public int Wisdom = 20;
+    public int Health = 200;
+    public int Luck = 2;
+    public int Dexterity = 2;
+    public int Aggression = 2;
+    public int Persuasion = 2;
+    public int Strength = 2;
+    public int Wisdom = 2;
 }

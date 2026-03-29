@@ -27,6 +27,12 @@ public enum InputReturn
     Remap
 }
 
+public enum AttackTypes
+{
+    Magical,
+    Normal,
+    Stealthy
+}
 public readonly record struct InputCode(InputDevice Device, int Code, string Description)
 {
     public static InputCode FromConsoleKey(ConsoleKey key) => new(InputDevice.Keyboard, (int)key, key.ToString());
@@ -80,8 +86,8 @@ public abstract class IInput
     public BiMap<InputCode, HandChoice> Hands = new();
     public BiMap<InputCode, ConfirmChoice> ConfirmChoices = new();
     public BiMap<InputCode, int> Numbers = new();
-
-
+    public BiMap<InputCode, AttackTypes> AttackStrategies = new ();
+    
     internal readonly Dictionary<InputCode, InputObject> PrimaryActionDictionary = new();
     public abstract bool RemapKeys();
     public abstract void Initialize(IInputPrimitives gameWorld);
@@ -110,14 +116,15 @@ public abstract class IInput
         public readonly BiMap<InputCode, HandChoice> Hands;
         public readonly BiMap<InputCode, ConfirmChoice> ConfirmChoices;
         public readonly BiMap<InputCode, int> Numbers;
-
+        public readonly BiMap<InputCode, AttackTypes> AttackStrategies;
         public InputContext(IInputPrimitives gameWorld, BiMap<InputCode, HandChoice> hands,
-            BiMap<InputCode, ConfirmChoice> confirmChoices, BiMap<InputCode, int> numbers)
+            BiMap<InputCode, ConfirmChoice> confirmChoices, BiMap<InputCode, int> numbers, BiMap<InputCode, AttackTypes> attackStrategies)
         {
             Game = gameWorld;
             Hands = hands;
             ConfirmChoices = confirmChoices;
             Numbers = numbers;
+            AttackStrategies = attackStrategies;
         }
     }
 }
@@ -137,7 +144,7 @@ public class KeyboardInput : IInput
 
         ConfirmChoices.Add(InputCode.FromConsoleKey(ConsoleKey.B), ConfirmChoice.Confirm);
         ConfirmChoices.Add(InputCode.FromConsoleKey(ConsoleKey.Enter), ConfirmChoice.Confirm);
-
+        
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.D0), 0);
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.D1), 1);
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.D2), 2);
@@ -158,6 +165,10 @@ public class KeyboardInput : IInput
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad7), 7);
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad8), 8);
         Numbers.Add(InputCode.FromConsoleKey(ConsoleKey.NumPad9), 9);
+
+        AttackStrategies.Add(InputCode.FromConsoleKey(ConsoleKey.M), AttackTypes.Magical);
+        AttackStrategies.Add(InputCode.FromConsoleKey(ConsoleKey.N), AttackTypes.Normal);
+        AttackStrategies.Add(InputCode.FromConsoleKey(ConsoleKey.S), AttackTypes.Stealthy);
     }
 
     private void InsertDefaultsPrimary()
@@ -180,17 +191,16 @@ public class KeyboardInput : IInput
         PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.B), new QuitAction(Ctx, _quitRef));
 
         PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.R), new RemapKeysAction(Ctx, _quitRef));
+
+        PrimaryActionDictionary.Add(InputCode.FromConsoleKey(ConsoleKey.Q), new AttackAction(Ctx, _quitRef));
     }
     public override void Initialize(IInputPrimitives gameWorld)
-
     {
         GameWorld = gameWorld;
 
         InsertDefaultsSecondary();
-        Ctx = new InputContext(gameWorld, Hands, ConfirmChoices, Numbers);
+        Ctx = new InputContext(gameWorld, Hands, ConfirmChoices, Numbers, AttackStrategies);
         InsertDefaultsPrimary();
-
-
 
     }
 
@@ -386,6 +396,125 @@ public class KeyboardInput : IInput
         MessageBus.Clear();
         return false;
 
+    }
+
+    public class AttackAction(InputContext ctx, StrongBox<InputReturn> arg) : InputObject(ctx)
+    {   
+        private StrongBox<InputReturn> Quit = arg;
+        public override void Action()
+        {
+            if (!ctx.Game.IsEnemy())
+            {
+                MessageBus.Send("No enemy to attack");
+                return;
+            } 
+            Hand handchoice;
+
+            (bool l, bool r, bool db) = ctx.Game.HandStatus();
+            if (db)
+            {
+                handchoice = Hand.Left;
+            }
+            else if (!l && !r)
+            {
+                MessageBus.Send("No weapon equipped");
+                return;
+            }
+            else if (l ^ r)
+            {
+                handchoice = l ? Hand.Left : Hand.Right;
+            }
+            else
+            {    if (!Ctx.Hands.TryGetByRight(HandChoice.Left, out var left) ||
+                     !Ctx.Hands.TryGetByRight(HandChoice.Right, out var right))
+                {
+                    MessageBus.Send("Hand bindings are not configured");
+                    return;
+                }
+                MessageBus.Send(
+                    $"Choose weapon to attack with by pressing {((ConsoleKey)left[^1].Code)}[left] or {((ConsoleKey)right[^1].Code)}[right]");
+
+                var k = Console.ReadKey(true).Key;
+                if (Ctx.Hands.TryGetByLeft(InputCode.FromConsoleKey(k), out var choice) &&
+                    choice == HandChoice.Right)
+                {
+                    handchoice = Hand.Right;
+                }
+                else if (choice == HandChoice.Left)
+                {
+                    handchoice = Hand.Left;
+                }
+                else
+                {
+                    MessageBus.Send("Invalid Input");
+                    return;
+                }
+            }
+
+            Ctx.AttackStrategies.TryGetByRight(AttackTypes.Magical, out var m);
+            Ctx.AttackStrategies.TryGetByRight(AttackTypes.Normal, out var n);
+            Ctx.AttackStrategies.TryGetByRight(AttackTypes.Stealthy, out var s);
+            MessageBus.Send(
+                $"Choose strategy by pressing Magical: {((ConsoleKey)m[^1].Code)}, Stealthy: {((ConsoleKey)s[^1].Code)}, Normal: {((ConsoleKey)n[^1].Code)}");
+            var key = Console.ReadKey(true).Key;
+            AttackStrategy strategy;
+            if (!ctx.AttackStrategies.TryGetByLeft(InputCode.FromConsoleKey(key), out var strat))
+            {
+                return;
+            }
+            switch (strat)
+            {
+                case AttackTypes.Magical:
+                    strategy = new MagicStrategy();
+                    break;
+                case AttackTypes.Normal:
+                    strategy= new NormalStrategy();
+                    break;
+                case AttackTypes.Stealthy:
+                    strategy = new StealthStrategy();
+                    break;
+                default:
+                    return;
+            }
+            foreach (var step in ctx.Game.AttackEnemyWith(handchoice, strategy))
+            {
+                if (step.Success != null)
+                {
+                    if (step.Success == false)
+                        MessageBus.Send("Attack failed");
+                    else
+                    {
+                        if (step.EnemyKilled==true)
+                        { 
+                            MessageBus.Send($"Player has killed the enemy, dealing him {step.DmgEnemy} damage");
+                        }
+                        else if(step.HeroSurvived==false)
+                        {
+                            MessageBus.Send($"This was our Hero's final battle.");
+                                MessageBus.Send("You lost");
+                                Quit.Value = InputReturn.Stop;
+                        }
+                        
+                    }
+                        
+                }
+                else
+                {
+                    if (step.DmgEnemy != null)
+                    {
+                        MessageBus.Send($"Player has dealt {step.DmgEnemy} damage to the enemy");
+                        
+                    }
+                    else if (step.DmgHero != null)
+                    {
+                        MessageBus.Send($"Enemy has dealt {step.DmgHero} damage to the hero");
+                    }
+                }
+            }
+        }
+        private readonly List<GameObjects> _objectsList = new List<GameObjects>([GameObjects.Enemies]);
+        public override string GuideDescription { get => "Attack an oponnent"; }
+        public override List<GameObjects> AssociatedGameObjects { get => _objectsList; }
     }
     public class RemapKeysAction(InputContext ctx, StrongBox<InputReturn> arg) : InputObject(ctx)
     {

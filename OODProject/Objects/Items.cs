@@ -2,7 +2,7 @@ using OODProject.Core;
 
 namespace OODProject.Objects;
 
-public class Broomstick : IInventoryItem
+public class Broomstick : INormalItem
 {
     public Broomstick() : base("Broomstick", "Rumours say that the best witches can use it to fly")
     {
@@ -22,7 +22,7 @@ public class Broomstick : IInventoryItem
     }
 }
 
-public class Teapot : IInventoryItem
+public class Teapot : INormalItem
 {
     public Teapot() : base("Teapot", "The British say that it is the cure for all sicknesses. They are wrong")
     {
@@ -42,7 +42,7 @@ public class Teapot : IInventoryItem
     }
 }
 
-public class BrokenSword : IInventoryItem
+public class BrokenSword : INormalItem
 {
     public BrokenSword() : base("Broken Sword", "Once great, now merely a bunch of rust")
     {

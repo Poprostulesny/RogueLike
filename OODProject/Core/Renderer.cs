@@ -310,8 +310,10 @@ public class Renderer
         disp.Add(new string("Player stands on an Empty Field:"));
         var occupant = _gameEngine.GetOccupantAt(x, y);
         if (occupant != null)
-            disp.Add(new string(
+        {   disp.Add(new string(
                 $"Enemy: {occupant.Name}: {occupant.Description}"));
+            disp.Add(new string($"HP: {occupant.HealthPoints} | Armor: {occupant.ArmorPoints} | Attack {occupant.AttackValue}"));
+        }
         var items = _gameEngine.GetItemsAt(x, y);
         if (items.Count != 0)
         {
@@ -361,17 +363,20 @@ public class Renderer
     public string[] DisplayStats()
     {
         var s = _gameEngine.GetHeroStats();
-        var stats = new string[8];
-        stats[0] = "Hero";
-        stats[1] = $"Strength: {s.Strength}";
-        stats[2] = $"Agility: {s.Agility}";
-        stats[3] = $"Wisdom: {s.Wisdom}";
-        stats[4] = $"Persuasion: {s.Persuasion}";
-        stats[5] = $"Health: {s.Health}";
-        stats[6] = $"Defense: {s.Defense}";
-        stats[7] = $"Gold: {s.Gold} | Coins: {s.Coins}";
-
-        return stats;
+        return
+        [
+            "Hero",
+            $"Health: {s.Health}",
+            $"Defense: {s.Defense}",
+            $"Strength: {s.Strength}",
+            $"Dexterity: {s.Dexterity}",
+            $"Agility: {s.Agility}",
+            $"Wisdom: {s.Wisdom}",
+            $"Luck: {s.Luck}",
+            $"Aggression: {s.Aggression}",
+            $"Persuasion: {s.Persuasion}",
+            $"Gold: {s.Gold} | Coins: {s.Coins}"
+        ];
     }
 
     public StringBuilder DisplayGuide()
