@@ -12,14 +12,16 @@ public class DragonSlayerSword : IInventoryItem
     public override bool IsTwoHanded => true;
     public override int Damage => 100;
 
-    public override void ApplyEffect(Hero player)
+   
+
+    public override void OnEquip(Hero player)
     {
-        player.Stats.Strength += 10;
+       
     }
 
-    public override void TakeOffEffect(Hero player)
+    public override void OnUnequip(Hero player)
     {
-        player.Stats.Strength -= 10;
+       
     }
 }
 
@@ -33,11 +35,13 @@ public class RustySword : IInventoryItem
     public override bool IsTwoHanded => false;
     public override int Damage => 5;
 
-    public override void ApplyEffect(Hero player)
+
+    public override void OnEquip(Hero player)
     {
+        
     }
 
-    public override void TakeOffEffect(Hero player)
+    public override void OnUnequip(Hero player)
     {
     }
 }
@@ -52,15 +56,14 @@ public class Shield : IInventoryItem
     public override bool IsTwoHanded => false;
     public override int Damage => 0;
 
-    public override void ApplyEffect(Hero player)
+
+    public override void OnEquip(Hero player)
     {
-        player.Stats.Agility -= 10;
-        player.Stats.Defense += 50;
+        
     }
 
-    public override void TakeOffEffect(Hero player)
+    public override void OnUnequip(Hero player)
     {
-        player.Stats.Agility += 10;
-        player.Stats.Defense -= 50;
+      
     }
 }

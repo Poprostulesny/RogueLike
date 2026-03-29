@@ -27,12 +27,12 @@ public class Hero : IDescribable
     }
 
 
-    public bool TryTakeItem(IInventoryItem item)
+    public bool TryTakeItem(IInventoryItemBase item)
     {
         return Inventory.TryAdd(item);
     }
 
-    public void Drop(IInventoryItem item)
+    public void Drop(IInventoryItemBase item)
     {
         Inventory.Remove(item);
     }
@@ -62,10 +62,13 @@ public class Hero : IDescribable
 public class HeroStats
 {
     public int Agility = 20;
-    public int Coins;
+    public int Coins=0;
     public int Defense = 20;
-    public int Gold;
+    public int Gold=0;
     public int Health = 20;
+    public int Luck = 20;
+    public int Dexterity = 20;
+    public int Aggression = 20;
     public int Persuasion = 20;
     public int Strength = 20;
     public int Wisdom = 20;

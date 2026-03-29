@@ -18,7 +18,7 @@ public interface IGameWorldView
     IReadOnlyCollection<IItem> GetItemsAt(int x, int y);
     IOccupant? GetOccupantAt(int x, int y);
     Hands GetHands();
-    (IReadOnlyCollection<IInventoryItem>, int) GetInventoryItems();
+    (IReadOnlyCollection<IInventoryItemBase>, int) GetInventoryItems();
     HeroStats GetHeroStats();
    IReadOnlyCollection<GameObjects> WorldFeatures { get; }
     
@@ -33,7 +33,7 @@ public interface IInputPrimitives
     public (IItem? item, bool result) PickupItem(int cnt);
     public IItem? FreeHerosHand(Hand hand);
     public IItem? EquipItem(int cnt,Hand side);
-    public IInventoryItem GetInventoryItem(int cnt);
+    public IInventoryItemBase GetInventoryItem(int cnt);
     public int CntFieldItems();
     public bool IsTwoHandedEquipped();
     
@@ -165,7 +165,7 @@ public class GameWorld:IGameWorldView , IInputPrimitives
     public IItem? FreeHerosHand(Hand hand)
     {
         
-        IInventoryItem? item = _player.Hands.TryRemove(hand, _player);
+        IInventoryItemBase? item = _player.Hands.TryRemove(hand, _player);
 
         return item;
     }
@@ -184,7 +184,7 @@ public class GameWorld:IGameWorldView , IInputPrimitives
         return null;
     }
 
-    public IInventoryItem GetInventoryItem(int cnt)
+    public IInventoryItemBase GetInventoryItem(int cnt)
     {
         cnt--;
         return _player.Inventory.Items[cnt];
@@ -214,7 +214,7 @@ public class GameWorld:IGameWorldView , IInputPrimitives
         return new Hands(_player.Hands);
     }
 
-    public (IReadOnlyCollection<IInventoryItem>, int) GetInventoryItems()
+    public (IReadOnlyCollection<IInventoryItemBase>, int) GetInventoryItems()
     {
         return (_player.Inventory.Items.AsReadOnly(), _player.Inventory.Capacity);
     }

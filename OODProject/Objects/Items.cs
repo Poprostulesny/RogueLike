@@ -11,14 +11,14 @@ public class Broomstick : IInventoryItem
     public override int ItemSize => 1;
     public override bool IsTwoHanded => false;
     public override int Damage => 0;
-
-
-    public override void ApplyEffect(Hero player)
+    public override void OnEquip(Hero player)
     {
+        
     }
 
-    public override void TakeOffEffect(Hero player)
+    public override void OnUnequip(Hero player)
     {
+        
     }
 }
 
@@ -31,13 +31,14 @@ public class Teapot : IInventoryItem
     public override int ItemSize => 1;
     public override bool IsTwoHanded => false;
     public override int Damage => 0;
-
-    public override void ApplyEffect(Hero player)
+    public override void OnEquip(Hero player)
     {
+        
     }
 
-    public override void TakeOffEffect(Hero player)
+    public override void OnUnequip(Hero player)
     {
+       
     }
 }
 
@@ -51,11 +52,13 @@ public class BrokenSword : IInventoryItem
     public override bool IsTwoHanded => false;
     public override int Damage => 0;
 
-    public override void ApplyEffect(Hero player)
+
+    public override void OnEquip(Hero player)
     {
+        
     }
 
-    public override void TakeOffEffect(Hero player)
+    public override void OnUnequip(Hero player)
     {
     }
 }
